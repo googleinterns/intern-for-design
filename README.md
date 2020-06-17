@@ -1,6 +1,8 @@
 **This is not an officially supported Google product.**
 
-# jrparra@'s summer intern project.
+# Google Interns for Design.
+
+Repository for the Google interns working on design related projects.
 
 ## Source Code Headers
 
