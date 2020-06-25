@@ -17,7 +17,7 @@ limitations under the License.
 if (window.File && window.FileReader && window.FileList && window.Blob) {
   // this function is called when the input loads a video
   function showVideo(): void {
-    var file = (<HTMLInputElement>event.target).files[0];
+    const file = (<HTMLInputElement>event.target).files[0];
     //grab the first video in the fileList
     //Currently, only loading one file
     console.log("video file has been chosen");
@@ -26,10 +26,10 @@ if (window.File && window.FileReader && window.FileList && window.Blob) {
   }
 
   // this function is for displaying video content
-  function renderVideo(file: any): void {
-    var reader = new FileReader();
-    reader.onload = function (event) {
-      var the_url = event.target.result;
+  function renderVideo(file: File): void {
+    const reader = new FileReader();
+    reader.onload = function () {
+      let the_url = reader.result;
       // Using a template library like handlebars.js may be a better solution than just inserting a string
       document.getElementById("data-vid").innerHTML =
         "<video width='400' controls><source id='vid-source' src='" +
