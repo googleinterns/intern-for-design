@@ -1,4 +1,4 @@
-/*
+/**
 Copyright 2020 Google LLC
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,7 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-// this function is called when the video passing to the web worker
+
+/** Send output data back to main script */
 onmessage = function (e: MessageEvent) {
   const ctx: Worker = self as any;
   console.log('Worker: video received from main');
