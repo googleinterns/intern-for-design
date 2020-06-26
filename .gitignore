@@ -1,3 +1,2 @@
-# Ignores compiled TypeScript files #
-###################
-*.js
+# Ignore vs code workspace settings
+.vscode

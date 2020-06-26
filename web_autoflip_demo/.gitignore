@@ -1,0 +1,8 @@
+# Ignores compiled TypeScript files.
+*.js
+
+# Allow config files written in javascript files.
+!.*.js
+
+# Ingore all node_modules
+node_modules
