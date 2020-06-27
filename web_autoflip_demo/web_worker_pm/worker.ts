@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/** Send output data back to main script */
+/** Sends output data back to main script. */
 onmessage = function (e: MessageEvent) {
   const ctx: Worker = self as any;
   console.log('Worker: video received from main');

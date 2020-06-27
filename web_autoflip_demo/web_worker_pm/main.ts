@@ -15,7 +15,7 @@ limitations under the License.
 
 declare let buffer: ArrayBuffer;
 
-/** Read input video as an array buffer */
+/** Reads input video as an array buffer. */
 function videoToBuffer(): void {
   const file = (<HTMLInputElement>event.target).files[0];
   console.log('video file has been chosen');
@@ -28,7 +28,7 @@ function videoToBuffer(): void {
   reader.readAsArrayBuffer(file);
 }
 
-/** Start a new worker */
+/** Starts a new web worker. */
 function startWorker(): void {
   const myWorker = new Worker('worker.js');
   myWorker.postMessage(buffer);
@@ -36,14 +36,14 @@ function startWorker(): void {
   myWorker.onmessage = function (e): void {
     console.log(e.data);
     console.log('video received from worker');
-    // render the received video
+    // renders the received video.
     renderVideo(e.data);
   };
 }
 
-/** Display video content */
+/** Displays video content. */
 function renderVideo(videoBuffer: ArrayBuffer): void {
-  const videoBlob = new Blob([videoBuffer], { type: 'video/mp3' });
+  const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
   const objectURL = URL.createObjectURL(videoBlob);
   document.getElementById('data-vid').innerHTML = `<video width='400' controls>
     <source id='vid-source' src= ${objectURL} 'type='video/mp4'>
