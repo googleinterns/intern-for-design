@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "mediapipe/examples/desktop/autoflip/autoflip_messages.pb.h"
+#include "mediapipe/examples/desktop/autoflip/calculators/text_detection_calculator.pb.h"
 #include "mediapipe/examples/desktop/autoflip/quality/visual_scorer.h"
 #include "mediapipe/framework/calculator_framework.h"
 #include "mediapipe/framework/formats/detection.pb.h"
@@ -34,6 +35,18 @@
 namespace mediapipe {
 namespace autoflip {
 
+constexpr char kInputVideo[] = "VIDEO";
+constexpr char kOutputRegion[] = "REGIONS";
+// Constants for cv::dnn::blobfromimage.
+const float kSCALE_FACTOR = 1.0;
+const float kMEAN_R = 103.94;
+const float kMEAN_G = 116.78;
+const float kMEAN_B = 123.68;
+// Input fore EAST model has to be a multiple of 32 
+const int EAST_WIDTH = 320;
+const int EAST_HEIGHT = 320;
+
+
 // This calculator detects texts in the images and converts detected texts 
 // to SalientRegion protos that can be used for downstream processing. Each
 // SalientRegion is scored using image cues. 
@@ -43,7 +56,7 @@ namespace autoflip {
 //    output_stream: "REGIONS:regions"
 //    options:{
 //      [mediapipe.autoflip.TextDetectionCalculatorOptions.ext]:{
-//        export_text_bounding_box: True
+//        use_visual_scorer: True
 //      }
 //    }
 //
@@ -59,11 +72,13 @@ class TextDetectionCalculator : public CalculatorBase {
   ::mediapipe::Status Process(mediapipe::CalculatorContext* cc) override;
 
  private:
-  double NormalizeX(const int pixel);
-  double NormalizeY(const int pixel);
   // Decode the outputs of the EAST neural network
   void DecodeBoundingBoxes(const cv::Mat& socres, const cv::Mat& geometry, float scoreTresh,
-                         std::vector<RotatedRect>& detections, std::vector<float>& confidences);
+                         std::vector<cv::RotatedRect>& detections, std::vector<float>& confidences);
+
+  // Detect the text.
+  void DetectText(const cv::Mat& frame, cv::dnn::Net detector,
+                cv::Mat& scores, cv::Mat& geometry);
 
   // Calculator options.
   TextDetectionCalculatorOptions options_;
@@ -71,16 +86,18 @@ class TextDetectionCalculator : public CalculatorBase {
   // A scorer used to assign weights to texts.
   std::unique_ptr<VisualScorer> scorer_;
 
-  // Dimensions of video frame
-  int frame_width_;
-  int frame_height_;
+  // Threshold to determine whether a target is text,
+  // if greater than kConfidence_threshold_, it's text.
+  const float kConfidence_threshold_ = 0.5;
+  
+  // Threshold for non maximum supression.
+  const float kNMS_threshold_ = 0.4;
 
-  const float confidence_threshold = 0.7; //0.5;
-  const float nms_threshold = 0.4;
-  const std::string model_path = "/mediapipe/models/frozen_east_text_detection.pb";
-  cv::dnn::Net detector;
-  std::vector<Mat> outs;
-  std::vector<String> outNames(2);
+  // Text detection model path.
+  cv::String kModel_path_ = "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb";
+
+  // Text detector.
+  cv::dnn::Net detector_;
 
 }; // end with inheritance
 
@@ -90,61 +107,31 @@ TextDetectionCalculator::TextDetectionCalculator() {}
 
 ::mediapipe::Status TextDetectionCalculator::GetContract(
     mediapipe::CalculatorContract* cc) {
-  if (cc->Inputs().HasTag("VIDEO")) {
-    cc->Inputs().Tag("VIDEO").Set<ImageFrame>();
-  }
-  cc->Outputs().Tag("REGIONS").Set<DetectionSet>();
+  cc->Inputs().Tag(kInputVideo).Set<ImageFrame>();
+  cc->Outputs().Tag(kOutputRegion).Set<DetectionSet>();
   return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status TextDetectionCalculator::Open(
     mediapipe::CalculatorContext* cc) {
   options_ = cc->Options<TextDetectionCalculatorOptions>();
-  if (!cc->Inputs().HasTag("VIDEO")) {
-    RET_CHECK(!options_.use_visual_scorer())
-        << "VIDEO input must be provided when using visual_scorer.";
-    RET_CHECK(!options_.export_text_bounding_box())
-        << "VIDEO input must be provided when export_text_bounding_box "
-           "is set true.";
-  }
-
   scorer_ = absl::make_unique<VisualScorer>(options_.scorer_options());
-  frame_width_ = -1;
-  frame_height_ = -1;
-  detector = cv::dnn::readNet(model_path);
-  outNames[0] = "feature_fusion/Conv_7/Sigmoid";
-  outNames[1] = "feature_fusion/concat_3";
+  detector_ = cv::dnn::readNet(kModel_path_);
 
   return ::mediapipe::OkStatus();
 }
 
-inline double TextDetectionCalculator::NormalizeX(const int pixel) {
-  return pixel / static_cast<double>(frame_width_);
-}
-
-inline double TextDetectionCalculator::NormalizeY(const int pixel) {
-  return pixel / static_cast<double>(frame_height_);
-}
-
-void TextDetectionCalculator::DecodeBoundingBoxes(const Mat& scores, const Mat& geometry, float scoreThresh,
-                         std::vector<RotatedRect>& detections, std::vector<float>& confidences) {
+void TextDetectionCalculator::DecodeBoundingBoxes(const cv::Mat& scores, const cv::Mat& geometry, float scoreThresh,
+                         std::vector<cv::RotatedRect>& detections, std::vector<float>& confidences) {
     detections.clear();
-    RET_CHECK(scores.dims == 4)
-        << "Scores' dimension must be 4.";
-    RET_CHECK(scores.size[0] == 1)
-        << "scores.size[0] must be 1.";
-    RET_CHECK(scores.size[1] == 1)
-        << "scores.size[1] must 1.";
-    RET_CHECK(geometry.dims == 4)
-        << "Geometry dimension must be 4.";
-    RET_CHECK(geometry.size[0] == 1)
-        << "geometry.size[0] must be 1.";
-    RET_CHECK(geometry.size[1] == 5)
-        << "geometry.size[1] must be 5.";
-    RET_CHECK(scores.size[2] == geometry.size[2])
-        << "scores.size[2] must equal to geometry.size[2].";
-    RET_CHECK(scores.size[3] == geometry.size[3])
-        << "scores.size[3] must equal to geometry.size[3].";
+    CV_Assert(scores.dims == 4);
+    CV_Assert(scores.size[0] == 1);
+    CV_Assert(scores.size[1] == 1);
+    CV_Assert(geometry.dims == 4);
+    CV_Assert(geometry.size[0] == 1);
+    CV_Assert(geometry.size[1] == 5);
+    CV_Assert(scores.size[2] == geometry.size[2]);
+    CV_Assert(scores.size[3] == geometry.size[3]);
 
     const int height = scores.size[2];
     const int width = scores.size[3];
@@ -172,88 +159,94 @@ void TextDetectionCalculator::DecodeBoundingBoxes(const Mat& scores, const Mat& 
 
             cv::Point2f offset(offsetX + cosA * x1_data[x] + sinA * x2_data[x],
                            offsetY - sinA * x1_data[x] + cosA * x2_data[x]);
-            cv::Point2f p1 = Point2f(-sinA * h, -cosA * h) + offset;
-            cv::Point2f p3 = Point2f(-cosA * w, sinA * w) + offset;
+            cv::Point2f p1 = cv::Point2f(-sinA * h, -cosA * h) + offset;
+            cv::Point2f p3 = cv::Point2f(-cosA * w, sinA * w) + offset;
 
-            cv::RotatedRect r(0.5f * (p1 + p3), Size2f(w, h), -angle * 180.0f / (float)CV_PI);
+            cv::RotatedRect r(0.5f * (p1 + p3), cv::Size2f(w, h), -angle * 180.0f / (float)CV_PI);
             detections.push_back(r);
             confidences.push_back(score);
         } // end for x
     } // end for y
 }   
 
+void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::dnn::Net detector, cv::Mat& scores, cv::Mat& geometry) {
+  cv::Mat blob;
+  // Mean subtraction and scalling.
+  // Details for blobFromImage: https://docs.opencv.org/3.4/d6/d0f/group__dnn.html#ga98113a886b1d1fe0b38a8eef39ffaaa0.
+  cv::dnn::blobFromImage(frame, blob, kSCALE_FACTOR, cv::Size(EAST_WIDTH, EAST_HEIGHT), 
+                cv::Scalar(kMEAN_B, kMEAN_G, kMEAN_R), true, false);
+  // Detect the text.
+  detector.setInput(blob);
+  std::vector<cv::Mat> outs;
+  std::vector<cv::String> outNames(2);
+  outNames[0] = "feature_fusion/Conv_7/Sigmoid";
+  outNames[1] = "feature_fusion/concat_3";
+  detector.forward(outs, outNames);
+
+  scores = outs[0];
+  geometry = outs[1];
+}
+
 ::mediapipe::Status TextDetectionCalculator::Process(
     mediapipe::CalculatorContext* cc) {
-  // What if !cc->Inputs.HasTag("VIDEO")
-  if (cc->Inputs().HasTag("VIDEO") &&
-      cc->Inputs().Tag("VIDEO").Value().IsEmpty()) {
+  if (cc->Inputs().Tag(kInputVideo).Value().IsEmpty()) {
     return ::mediapipe::UnknownErrorBuilder(MEDIAPIPE_LOC)
            << "No VIDEO input at time " << cc->InputTimestamp().Seconds();
   }
 
-  if (cc->Inputs().HasTag("VIDEO")) {
-    cv::Mat frame, blob;
-    frame = mediapipe::formats::MatView(
-        &cc->Inputs().Tag("VIDEO").Get<ImageFrame>());
-    frame_width_ = frame.cols;
-    frame_height_ = frame.rows;
+  cv::Mat frame;
+  frame = mediapipe::formats::MatView(
+      &cc->Inputs().Tag(kInputVideo).Get<ImageFrame>());
 
-    // Mean subtraction and scalling.
-    blobFromImage(frame, blob, 1.0, Size(frame_width_, frame_height_), 
-                  Scalar(123.68, 116.78, 103.94), true, false);
-    // Detect the text.
-    detector.setInput(blob);
-    detector.forward(outs, outNames);
+  // Detect the text.
+  cv::Mat scores, geometry;
+  DetectText(frame, detector_, scores, geometry);
 
-    cv::Mat scores = outs[0];
-    cv::Mat geometry = outs[1];
+  // Decode predicted bounding boxes and corresponding confident scores.
+  std::vector<cv::RotatedRect> boxes;
+  std::vector<float> confidences;
+  DecodeBoundingBoxes(scores, geometry, kConfidence_threshold_, boxes, confidences);
 
-    // Decode predicted bounding boxes and corresponding confident scores.
-    std::vector<RotatedRect> boxes;
-    std::vector<float> confidences;
-    DecodeBoundingBoxes(scores, geometry, confidence_threshold, boxes, confidences);
+  // Apply non-maximum suppression procedure.
+  std::vector<int> indices;
+  cv::dnn::NMSBoxes(boxes, confidences, kConfidence_threshold_, kNMS_threshold_, indices);
 
-    // Apply non-maximum suppression procedure.
-    std::vector<int> indices;
-    cv::dnn::NMSBoxes(boxes, confidences, confidence_threshold, nms_threshold, indices);
+  // Converts detected texts to SalientRegion protos.
+  auto region_set = ::absl::make_unique<DetectionSet>();
+  for (size_t i = 0; i < indices.size(); ++i) {
+    cv::RotatedRect& box = boxes[indices[i]];
+    cv::Rect2f RectBox = box.boundingRect();
+    float text_score = confidences[indices[i]];
+    
+    // Normalize the bounding box, note that the frame is
+    // resized to (EAST_WIDTH, EAST_HEIGHT) in DetectText.
+    RectBox.x /= EAST_WIDTH;
+    RectBox.y /= EAST_HEIGHT;
+    RectBox.width /= EAST_WIDTH;
+    RectBox.height /= EAST_HEIGHT;
+    float x = std::max(0.0f, RectBox.x);
+    float y = std::max(0.0f, RectBox.y);
+    float width =
+        std::min(RectBox.width - x + RectBox.x, 1 - x);
+    float height = 
+        std::min(RectBox.height - y + RectBox.y, 1 - y);
 
-    auto region_set = ::absl::make_unique<DetectionSet>();
-    for (size_t i = 0; i < indices.size(); ++i) {
-      cv::RotatedRect& box = boxes[indices[i]];
-      cv::Rect2f RectBox = box.boundingRect();
-      float text_score = confidences[indices[i]];
-      
-      // Normalize the bounding box.
-      RectBox.x = NormalizeX(RectBox.x);
-      RectBox.y = NormalizeY(RectBox.y);
-      RectBox.width = NormalizeX(RectBox.width);
-      RectBox.height = NormalizeY(RectBox.height);
-      float x = std::max(0.0f, RectBox.x);
-      float y = std::max(0.0f, RectBox.y);
-      float width =
-          std::min(NormalizeX(RectBox.width) - x + RectBox.x, 1 - x);
-      float height = 
-          std::min(RectBox.height - y + RectBox.y, 1 - y);
+    // Convert the text bounding box to a region.
+    SalientRegion* region = region_set->add_detections();
+    region->mutable_location_normalized()->set_x(x);
+    region->mutable_location_normalized()->set_y(y);
+    region->mutable_location_normalized()->set_width(width);
+    region->mutable_location_normalized()->set_height(height);
+    region->mutable_signal_type()->set_standard(SignalType::TEXT);
 
-      // Convert the text bounding box to a region.
-      if (options_.export_text_bounding_box()) {
-        SalientRegion* region = region_set->add_detections();
-        region->mutable_location_normalized()->set_x(x);
-        region->mutable_location_normalized()->set_y(y);
-        region->mutable_location_normalized()->set_width(width);
-        region->mutable_location_normalized()->set_height(height);
-        region->mutable_signal_type()->set_standard(SignalType::TEXT);
-
-        // Score the text based on image cues.
-        if (options_.use_visual_scorer()) {
-          MP_RETURN_IF_ERROR(
-              scorer_->CalculateScore(frame, *region, &text_score));
-        }
-        region->set_score(text_score);
-      }
+    // Score the text based on image cues.
+    if (options_.use_visual_scorer()) {
+      MP_RETURN_IF_ERROR(
+          scorer_->CalculateScore(frame, *region, &text_score));
     }
-    cc->Outputs().Tag("REGIONS").Add(region_set.release(), cc->InputTimestamp());
+    region->set_score(text_score);
   }
+  cc->Outputs().Tag(kOutputRegion).Add(region_set.release(), cc->InputTimestamp());
 
   return ::mediapipe::OkStatus();
 }

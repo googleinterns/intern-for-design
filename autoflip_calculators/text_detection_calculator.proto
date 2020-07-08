@@ -29,11 +29,7 @@ message TextDetectionCalculatorOptions {
   // scores for text bbox region types.
   optional VisualScorerOptions scorer_options = 1;
 
-  // Output standard autoflip signals only (text) and apply
-  // standard autoflip labels.
-  optional bool export_text_bounding_box = 2 [default = true];
-
   // If true, generate a score from the appearance of the text and use it to
   // modulate the detection scores for text bboxes.
-  optional bool use_visual_scorer = 3 [default = true];
+  optional bool use_visual_scorer = 2 [default = true];
 }
