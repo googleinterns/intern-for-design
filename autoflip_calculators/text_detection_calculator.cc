@@ -42,7 +42,7 @@ const float kSCALE_FACTOR = 1.0;
 const float kMEAN_R = 103.94;
 const float kMEAN_G = 116.78;
 const float kMEAN_B = 123.68;
-// Input fore EAST model has to be a multiple of 32 
+// Input fore EAST model has to be a multiple of 32.
 const int EAST_WIDTH = 320;
 const int EAST_HEIGHT = 320;
 
@@ -57,6 +57,9 @@ const int EAST_HEIGHT = 320;
 //    options:{
 //      [mediapipe.autoflip.TextDetectionCalculatorOptions.ext]:{
 //        use_visual_scorer: True
+//        model_path: /path/to/modelname.pb
+//        confidence_threshold: 0.5
+//        nms_threshold: 0.4
 //      }
 //    }
 //
@@ -72,32 +75,21 @@ class TextDetectionCalculator : public CalculatorBase {
   ::mediapipe::Status Process(mediapipe::CalculatorContext* cc) override;
 
  private:
-  // Decode the outputs of the EAST neural network
-  void DecodeBoundingBoxes(const cv::Mat& socres, const cv::Mat& geometry, float scoreTresh,
-                         std::vector<cv::RotatedRect>& detections, std::vector<float>& confidences);
-
   // Detect the text.
-  void DetectText(const cv::Mat& frame, cv::dnn::Net detector,
-                cv::Mat& scores, cv::Mat& geometry);
-
-  // Calculator options.
-  TextDetectionCalculatorOptions options_;
-
+  void DetectText(const cv::Mat& frame, cv::Mat* scores, cv::Mat* geometry);
+  // Decode the outputs of the EAST neural network
+  void DecodeBoundingBoxes(const cv::Mat& socres, const cv::Mat& geometry, const float scoreTresh,
+                      std::vector<cv::RotatedRect>* detections, std::vector<float>* confidences);
+  
+  // If true, generate a score from the appearance of the text and use it to
+  // modulate the detection scores for text bboxes.
+  bool use_visual_scorer_ = true;
   // A scorer used to assign weights to texts.
   std::unique_ptr<VisualScorer> scorer_;
-
-  // Threshold to determine whether a target is text,
-  // if greater than kConfidence_threshold_, it's text.
-  const float kConfidence_threshold_ = 0.5;
-  
-  // Threshold for non maximum supression.
-  const float kNMS_threshold_ = 0.4;
-
-  // Text detection model path.
-  cv::String kModel_path_ = "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb";
-
   // Text detector.
   cv::dnn::Net detector_;
+  // Parameters for EAST model
+  float confidence_threshold_, nms_threshold_;
 
 }; // end with inheritance
 
@@ -109,21 +101,46 @@ TextDetectionCalculator::TextDetectionCalculator() {}
     mediapipe::CalculatorContract* cc) {
   cc->Inputs().Tag(kInputVideo).Set<ImageFrame>();
   cc->Outputs().Tag(kOutputRegion).Set<DetectionSet>();
+
   return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status TextDetectionCalculator::Open(
     mediapipe::CalculatorContext* cc) {
-  options_ = cc->Options<TextDetectionCalculatorOptions>();
-  scorer_ = absl::make_unique<VisualScorer>(options_.scorer_options());
-  detector_ = cv::dnn::readNet(kModel_path_);
+  const auto& options = cc->Options<TextDetectionCalculatorOptions>();
+  scorer_ = absl::make_unique<VisualScorer>(options.scorer_options());
+  use_visual_scorer_ = options.use_visual_scorer();
+  confidence_threshold_ = options.confidence_threshold();
+  nms_threshold_ = options.nms_threshold();
+  RET_CHECK(!options.model_path().empty())
+      << "Model path in options is required.";
+  std::string model_path = options.model_path();
+  detector_ = cv::dnn::readNet(model_path);
 
   return ::mediapipe::OkStatus();
 }
 
-void TextDetectionCalculator::DecodeBoundingBoxes(const cv::Mat& scores, const cv::Mat& geometry, float scoreThresh,
-                         std::vector<cv::RotatedRect>& detections, std::vector<float>& confidences) {
-    detections.clear();
+void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, cv::Mat* geometry) {
+  cv::Mat blob;
+  // Mean subtraction and scalling.
+  // Details for blobFromImage: https://docs.opencv.org/3.4/d6/d0f/group__dnn.html#ga98113a886b1d1fe0b38a8eef39ffaaa0.
+  cv::dnn::blobFromImage(frame, blob, kSCALE_FACTOR, cv::Size(EAST_WIDTH, EAST_HEIGHT), 
+                cv::Scalar(kMEAN_B, kMEAN_G, kMEAN_R), true, false);
+  // Detect the text.
+  detector_.setInput(blob);
+  std::vector<cv::Mat> outs;
+  std::vector<cv::String> outNames(2);
+  outNames[0] = "feature_fusion/Conv_7/Sigmoid";
+  outNames[1] = "feature_fusion/concat_3";
+  detector_.forward(outs, outNames);
+
+  *scores = outs[0];
+  *geometry = outs[1];
+}
+
+void TextDetectionCalculator::DecodeBoundingBoxes(const cv::Mat& scores, const cv::Mat& geometry, const float scoreThresh,
+                        std::vector<cv::RotatedRect>* detections, std::vector<float>* confidences) {
+    detections->clear();
     CV_Assert(scores.dims == 4);
     CV_Assert(scores.size[0] == 1);
     CV_Assert(scores.size[1] == 1);
@@ -163,29 +180,11 @@ void TextDetectionCalculator::DecodeBoundingBoxes(const cv::Mat& scores, const c
             cv::Point2f p3 = cv::Point2f(-cosA * w, sinA * w) + offset;
 
             cv::RotatedRect r(0.5f * (p1 + p3), cv::Size2f(w, h), -angle * 180.0f / (float)CV_PI);
-            detections.push_back(r);
-            confidences.push_back(score);
+            detections->push_back(r);
+            confidences->push_back(score);
         } // end for x
     } // end for y
 }   
-
-void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::dnn::Net detector, cv::Mat& scores, cv::Mat& geometry) {
-  cv::Mat blob;
-  // Mean subtraction and scalling.
-  // Details for blobFromImage: https://docs.opencv.org/3.4/d6/d0f/group__dnn.html#ga98113a886b1d1fe0b38a8eef39ffaaa0.
-  cv::dnn::blobFromImage(frame, blob, kSCALE_FACTOR, cv::Size(EAST_WIDTH, EAST_HEIGHT), 
-                cv::Scalar(kMEAN_B, kMEAN_G, kMEAN_R), true, false);
-  // Detect the text.
-  detector.setInput(blob);
-  std::vector<cv::Mat> outs;
-  std::vector<cv::String> outNames(2);
-  outNames[0] = "feature_fusion/Conv_7/Sigmoid";
-  outNames[1] = "feature_fusion/concat_3";
-  detector.forward(outs, outNames);
-
-  scores = outs[0];
-  geometry = outs[1];
-}
 
 ::mediapipe::Status TextDetectionCalculator::Process(
     mediapipe::CalculatorContext* cc) {
@@ -200,16 +199,16 @@ void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::dnn::Net dete
 
   // Detect the text.
   cv::Mat scores, geometry;
-  DetectText(frame, detector_, scores, geometry);
+  DetectText(frame, &scores, &geometry);
 
   // Decode predicted bounding boxes and corresponding confident scores.
   std::vector<cv::RotatedRect> boxes;
   std::vector<float> confidences;
-  DecodeBoundingBoxes(scores, geometry, kConfidence_threshold_, boxes, confidences);
+  DecodeBoundingBoxes(scores, geometry, confidence_threshold_, &boxes, &confidences);
 
   // Apply non-maximum suppression procedure.
   std::vector<int> indices;
-  cv::dnn::NMSBoxes(boxes, confidences, kConfidence_threshold_, kNMS_threshold_, indices);
+  cv::dnn::NMSBoxes(boxes, confidences, confidence_threshold_, nms_threshold_, indices);
 
   // Converts detected texts to SalientRegion protos.
   auto region_set = ::absl::make_unique<DetectionSet>();
@@ -240,7 +239,7 @@ void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::dnn::Net dete
     region->mutable_signal_type()->set_standard(SignalType::TEXT);
 
     // Score the text based on image cues.
-    if (options_.use_visual_scorer()) {
+    if (use_visual_scorer_) {
       MP_RETURN_IF_ERROR(
           scorer_->CalculateScore(frame, *region, &text_score));
     }

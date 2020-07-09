@@ -78,7 +78,9 @@ CalculatorGraphConfig::Node MakeConfig(std::string base_config, bool use_visual_
   config.mutable_options()
       ->MutableExtension(TextDetectionCalculatorOptions::ext)
       ->set_use_visual_scorer(use_visual_scorer);
-
+  config.mutable_options()
+      ->MutableExtension(TextDetectionCalculatorOptions::ext)
+      ->set_model_path("/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb");
   return config;
 }
 
@@ -139,8 +141,8 @@ TEST(TextDetectionCalculatorTest, TwoPositionText) {
   // Setup test
   auto runner = ::absl::make_unique<CalculatorRunner>(
       MakeConfig(kConfig, true));
-  std::vector<cv::Point2f> top_left_corners{cv::Point2f(0.1, 0.7), cv::Point2f(0.8, 0.1)};
-  std::vector<std::string> text_labels{"short", "LOOOOOOOOOONGWORD"};
+  std::vector<cv::Point2f> top_left_corners{cv::Point2f(0.4, 0.7), cv::Point2f(0.8, 0.1)};
+  std::vector<std::string> text_labels{"texttext", "DETECTIONDETECTION"};
   SetInputs(true, top_left_corners, text_labels, runner.get());
 
   // Run the calculator.
