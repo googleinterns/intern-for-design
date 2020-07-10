@@ -24,13 +24,14 @@ message TextDetectionCalculatorOptions {
     optional TextDetectionCalculatorOptions ext = 284226722;
   }
 
-  // Options for generating a score for the text from its visual
-  // appearance. The generated score is used to modulate the detection 
-  // scores for text bbox region types.
+  // Options for generating a score for the text from its
+  // visual appearance. The generated score is used to modulate
+  // the detection scores for text bbox region types.
   optional VisualScorerOptions scorer_options = 1;
 
-  // If true, generate a score from the appearance of the text and use it to
-  // modulate the detection scores for text bboxes.
+  // If true, generate a score from the appearance of the text
+  // and use it to modulate the detection scores for text bboxes.
+  // If false, the socre will be taken from the detector's value.
   optional bool use_visual_scorer = 2 [default = true];
 
   // Path to the text detection TF model (ex: /path/to/modelname.pb).
@@ -38,8 +39,7 @@ message TextDetectionCalculatorOptions {
   optional string model_path = 3;
 
   // Threshold to determine whether a target is text or not.
-  // If a target's socre is greater than Confidence_threshold,
-  // it's text.
+  // If a target's socre is greater than it, target is text.
   optional float confidence_threshold = 4 [default = 0.5];
   
   // Threshold for non maximum supression.

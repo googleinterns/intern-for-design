@@ -31,7 +31,6 @@
 #include "mediapipe/framework/port/ret_check.h"
 #include "mediapipe/framework/port/status.h"
 #include "mediapipe/framework/port/status_builder.h"
-#include "mediapipe/util/resource_util.h"
 
 namespace mediapipe {
 namespace autoflip {
@@ -80,13 +79,12 @@ class TextDetectionCalculator : public CalculatorBase {
   void DetectText(const cv::Mat& frame, cv::Mat* scores, cv::Mat* geometry);
   // Decode the outputs of the EAST neural network
   ::mediapipe::Status DecodeBoundingBoxes(const cv::Mat& socres,
-                            const cv::Mat& geometry, const float scoreTresh,
-                            std::vector<cv::RotatedRect>* detections,
-                            std::vector<float>* confidences);
+        const cv::Mat& geometry, const float score_treshoud,
+        std::vector<cv::RotatedRect>* detections, std::vector<float>* confidences);
   // Converts detected texts to SalientRegion protos.
-  ::mediapipe::Status ConvertToRegions(const cv::Mat& frame, const std::vector<cv::RotatedRect>& bboxes,
-                    const std::vector<float>& confidences, const std::vector<int>& indices,
-                    DetectionSet* region_set);
+  ::mediapipe::Status ConvertToRegions(const cv::Mat& frame, 
+        const std::vector<cv::RotatedRect>& bboxes, const std::vector<float>& confidences,
+        const std::vector<int>& indices, DetectionSet* region_set);
   // Calculator options.
   TextDetectionCalculatorOptions options_;
   // A scorer used to assign weights to texts.
@@ -114,19 +112,12 @@ TextDetectionCalculator::TextDetectionCalculator() {}
   scorer_ = absl::make_unique<VisualScorer>(options_.scorer_options());
   RET_CHECK(!options_.model_path().empty())
       << "Model path in options is required.";
-  RET_CHECK(options_.confidence_threshold() <= 1)
-      << "Confidence threshold must be no greater than 1.";
-  RET_CHECK(options_.nms_threshold() <= 1)
-      << "NMS threshold must be no greater than 1";
-
   try {
       detector_ = cv::dnn::readNet(options_.model_path());
   }
   catch (cv::Exception & e) {
-      RET_CHECK(false) << "Model path is wrong. " << e.msg;
+      return mediapipe::InvalidArgumentError("error loading model path: " + e.msg.operator std::string());
   }
-  
-
   return ::mediapipe::OkStatus();
 }
 
@@ -161,69 +152,47 @@ TextDetectionCalculator::TextDetectionCalculator() {}
 void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, cv::Mat* geometry) {
   cv::Mat blob;
   // Mean subtraction and scalling.
-  // Details for blobFromImage: https://docs.opencv.org/3.4/d6/d0f/group__dnn.html#ga98113a886b1d1fe0b38a8eef39ffaaa0.
   cv::dnn::blobFromImage(frame, blob, kScaleFactor, cv::Size(kEastWidth, kEastHeight), 
                 cv::Scalar(kMeanB, kMeanG, kMeanR), true, false);
   // Detect the text.
   detector_.setInput(blob);
   std::vector<cv::Mat> outs;
-  std::vector<cv::String> outNames(2);
-  outNames[0] = "feature_fusion/Conv_7/Sigmoid";
-  outNames[1] = "feature_fusion/concat_3";
-  detector_.forward(outs, outNames);
-
+  std::vector<cv::String> out_names{"feature_fusion/Conv_7/Sigmoid", "feature_fusion/concat_3"};
+  detector_.forward(outs, out_names);
   *scores = outs[0];
   *geometry = outs[1];
 }
 
 ::mediapipe::Status TextDetectionCalculator::DecodeBoundingBoxes(const cv::Mat& scores, 
-                                                  const cv::Mat& geometry, const float scoreThresh,
-                                                  std::vector<cv::RotatedRect>* detections,
-                                                  std::vector<float>* confidences) {
+            const cv::Mat& geometry, const float score_treshoud,
+            std::vector<cv::RotatedRect>* detections, std::vector<float>* confidences) {
     detections->clear();
-    RET_CHECK(scores.dims == 4)
-        << "Scores dimension must be 4.";
-    RET_CHECK(scores.size[0] == 1)
-        << "scores.size[0] must be 1.";
-    RET_CHECK(scores.size[1] == 1)
-        << "scores.size[1] must 1.";
-    RET_CHECK(geometry.dims == 4)
-        << "Geometry dimension must be 4.";
-    RET_CHECK(geometry.size[0] == 1)
-        << "geometry.size[0] must be 1.";
-    RET_CHECK(geometry.size[1] == 5)
-        << "geometry.size[1] must be 5.";
-    RET_CHECK(scores.size[2] == geometry.size[2])
-        << "scores.size[2] must equal to geometry.size[2].";
-    RET_CHECK(scores.size[3] == geometry.size[3])
-        << "scores.size[3] must equal to geometry.size[3].";
-
     const int height = scores.size[2];
     const int width = scores.size[3];
     for (int y = 0; y < height; ++y) {
-        const float* scoresData = scores.ptr<float>(0, 0, y);
+        const float* scores_data = scores.ptr<float>(0, 0, y);
         const float* x0_data = geometry.ptr<float>(0, 0, y);
         const float* x1_data = geometry.ptr<float>(0, 1, y);
         const float* x2_data = geometry.ptr<float>(0, 2, y);
         const float* x3_data = geometry.ptr<float>(0, 3, y);
-        const float* anglesData = geometry.ptr<float>(0, 4, y);
+        const float* angles_data = geometry.ptr<float>(0, 4, y);
 
         for (int x = 0; x < width; ++x) {
-            float score = scoresData[x];
-            if (score < scoreThresh)
+            float score = scores_data[x];
+            if (score < score_treshoud)
                 continue;
             
             // Decode a prediction.
             // Multiple by 4 because maps are 4 time less than input image.
-            float offsetX = x * 4.0f, offsetY = y * 4.0f;
-            float angle = anglesData[x];
+            float offset_x = x * 4.0f, offset_y = y * 4.0f;
+            float angle = angles_data[x];
             float cosA = std::cos(angle);
             float sinA = std::sin(angle);
             float h = x0_data[x] + x2_data[x];
             float w = x1_data[x] + x3_data[x];
 
-            cv::Point2f offset(offsetX + cosA * x1_data[x] + sinA * x2_data[x],
-                           offsetY - sinA * x1_data[x] + cosA * x2_data[x]);
+            cv::Point2f offset(offset_x + cosA * x1_data[x] + sinA * x2_data[x],
+                           offset_y - sinA * x1_data[x] + cosA * x2_data[x]);
             cv::Point2f p1 = cv::Point2f(-sinA * h, -cosA * h) + offset;
             cv::Point2f p3 = cv::Point2f(-cosA * w, sinA * w) + offset;
 
@@ -235,12 +204,12 @@ void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, 
 
     return ::mediapipe::OkStatus(); 
 }   
-::mediapipe::Status TextDetectionCalculator::ConvertToRegions(const cv::Mat& frame, const std::vector<cv::RotatedRect>& bboxes,
-                                            const std::vector<float>& confidences, const std::vector<int>& indices,
-                                            DetectionSet* region_set) {
+::mediapipe::Status TextDetectionCalculator::ConvertToRegions(const cv::Mat& frame,
+        const std::vector<cv::RotatedRect>& bboxes, const std::vector<float>& confidences,
+        const std::vector<int>& indices, DetectionSet* region_set) {
   for (size_t i = 0; i < indices.size(); ++i) {
     cv::Rect2f box = bboxes[indices[i]].boundingRect();
-    float text_score = confidences[indices[i]];
+    float text_confidence = confidences[indices[i]];
     
     // Normalize the bounding box, note that the frame is
     // resized to (EAST_WIDTH, EAST_HEIGHT) in DetectText.
@@ -266,9 +235,9 @@ void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, 
     // Score the text based on image cues.
     if (options_.use_visual_scorer()) {
       MP_RETURN_IF_ERROR(
-          scorer_->CalculateScore(frame, *region, &text_score));
+          scorer_->CalculateScore(frame, *region, &text_confidence));
     }
-    region->set_score(text_score);
+    region->set_score(text_confidence);
   }
   return ::mediapipe::OkStatus(); 
 }
