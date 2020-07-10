@@ -160,19 +160,19 @@ void CheckOutps(const std::vector<cv::Point2f>& top_left_corners,
 //   input_frame.release();
 // }
 
-// // Checks that calculator works when there is no model path.
-// TEST(TextDetectionCalculatorTest, NoModelPath) {
-//   auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, ""));
-//   SetInputs(kTopLeftCornersOne, kTextLabelsOne, kFontScale, kFontColor, runner.get());
-//   MP_ASSERT_OK(runner->Run());
-// }
+// Checks that calculator works when there is no model path.
+TEST(TextDetectionCalculatorTest, NoModelPath) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, ""));
+  SetInputs(kTopLeftCornersOne, kTextLabelsOne, kFontScale, kFontColor, runner.get());
+  MP_ASSERT_OK(runner->Run());
+}
 
-// // Checks that calculator works when model path is wrong.
-// TEST(TextDetectionCalculatorTest, WrongModelPath) {
-//   auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, "wrong/path/model.pb"));
-//   SetInputs(kTopLeftCornersOne, kTextLabelsOne, kFontScale, kFontColor, runner.get());
-//   MP_ASSERT_OK(runner->Run());
-// }
+// Checks that calculator works when model path is wrong.
+TEST(TextDetectionCalculatorTest, WrongModelPath) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, "wrong/path/model.pb"));
+  SetInputs(kTopLeftCornersOne, kTextLabelsOne, kFontScale, kFontColor, runner.get());
+  MP_ASSERT_OK(runner->Run());
+}
 
 // Checks that calculator works when there is one text.
 TEST(TextDetectionCalculatorTest, OneText) {
