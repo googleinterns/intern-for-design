@@ -35,7 +35,7 @@ message TextDetectionCalculatorOptions {
 
   // Path to the text detection TF model (ex: /path/to/modelname.pb).
   //TODO(zzhencchen): support relative paths.
-  optional string model_path = 3 [default = "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb"];
+  optional string model_path = 3;
 
   // Threshold to determine whether a target is text or not.
   // If a target's socre is greater than Confidence_threshold,

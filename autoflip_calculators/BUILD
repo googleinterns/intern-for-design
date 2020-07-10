@@ -508,6 +508,7 @@ cc_library(
         "//mediapipe/framework/port:ret_check",
         "//mediapipe/framework/port:status",
         "@com_google_absl//absl/memory",
+        "//mediapipe/util:resource_util",
     ],
     alwayslink = 1,
 )
