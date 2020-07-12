@@ -1,7 +1,7 @@
 importScripts('visual_design_service_web_assembly_api.js');
-const ctx : any= self;
+const ctx: any = self;
 
-var recievedFrames : number = 0;
+var recievedFrames: number = 0;
 var wait: number = 0;
 var count: number = 0;
 var frameInfoArray: any[] = [];
@@ -12,16 +12,17 @@ onmessage = function (e: MessageEvent): void {
   var frameInfo = e.data;
   console.log(frameInfo);
   count++;
-  if (wait !== frameInfo.videoId && frameInfo.size !== count) {
+  if (wait !== frameInfo.videoId) {
     console.log(`AUTOFLIP: video(${frameInfo.videoId}) is not as expected. wait ${wait}`);
     console.log(`AUTOFLIP: store video(${frameInfo.videoId}) in array`);
     frameInfoArray[frameInfo.videoId] = frameInfo;
     console.log(frameInfoArray[frameInfo.videoId]);
-    return;
+    if (frameInfo.size !== count) return;
+  } else {
+    console.log(`AUTOFLIP: video(${frameInfo.videoId}) can be processed as wait ${wait}`);
+    console.log(frameInfo);
+    handleFrames(frameInfo);
   }
-  console.log(`AUTOFLIP: video(${frameInfo.videoId}) can be processed as wait ${wait}`);
-  console.log(frameInfo);
-  handleFrames(frameInfo);
   if (frameInfo.size === count) {
     while (wait < frameInfo.size) {
       frameInfo = frameInfoArray[wait];
@@ -62,8 +63,8 @@ onmessage = function (e: MessageEvent): void {
 
 /** Processes input video array to frames */
 function handleFrames(frameInfo: any): void {
-  console.log(`AUTOFLIP: video (${frameInfo.videoId}) received from main`);
   console.log(frameInfo);
+  console.log(`AUTOFLIP: video (${frameInfo.videoId}) received from main`);
 
   const frames = frameInfo.frames;
   const info = { width: frameInfo.width, height: frameInfo.height };
