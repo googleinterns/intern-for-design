@@ -35,8 +35,7 @@ function parseArguments(text: string): string[] {
 onmessage = function (e): void {
   const ctx = self as any;
   console.log(`FFMPEG: ffmpeg Worker ${e.data.workerId}: video array received from main`);
-  console.log(`FFMPEG: going to process video array ${e.data.videoId} section`);
-  console.log(e.data);
+  console.log(`FFMPEG: going to process video array(${e.data.videoId})`, e.data);
 
   const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
   const args = parseArguments(
@@ -57,9 +56,8 @@ onmessage = function (e): void {
       recreateFFmpegWasmInstance: true,
     })
     .then(function (result: any): void {
-      console.log(`FFMPEG: get result frames from section ${e.data.videoId} by worker ${e.data.workerId}`);
-      console.log(result);
-      var frames = result.buffers;
+      console.log(`FFMPEG: get result frames from section ${e.data.videoId} by worker ${e.data.workerId}`, result);
+      const frames = result.buffers;
       // This posts the analysis result back to main script
       ctx.postMessage({
         type: 'ffmpeg',

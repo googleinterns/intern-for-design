@@ -1,6 +1,7 @@
 # Intern Project Demo
 
 This project is for showing how the AutoFlip works and rendering cropped user input videos.
+This demo uses fixed workers for processing ffmpeg and autoflip, 4 workers for ffmpeg, 1 for autoflip.
 
 ## Installation
 

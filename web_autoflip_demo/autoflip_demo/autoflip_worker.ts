@@ -1,16 +1,14 @@
 importScripts('visual_design_service_web_assembly_api.js');
 const ctx: any = self;
 
-var recievedFrames: number = 0;
 var wait: number = 0;
 var count: number = 0;
 var frameInfoArray: any[] = [];
 
 /** Analyzes the input frames and output caculated crop windows for each frame*/
 onmessage = function (e: MessageEvent): void {
-  console.log(`AUTOFLIP: check if the frames are expected`);
   var frameInfo = e.data;
-  console.log(frameInfo);
+  console.log(`AUTOFLIP: check if the video(${frameInfo.videoId}) are expected`);
   count++;
   if (wait !== frameInfo.videoId) {
     console.log(`AUTOFLIP: video(${frameInfo.videoId}) is not as expected. wait ${wait}`);
@@ -20,7 +18,6 @@ onmessage = function (e: MessageEvent): void {
     if (frameInfo.size !== count) return;
   } else {
     console.log(`AUTOFLIP: video(${frameInfo.videoId}) can be processed as wait ${wait}`);
-    console.log(frameInfo);
     handleFrames(frameInfo);
   }
   if (frameInfo.size === count) {
@@ -44,10 +41,13 @@ onmessage = function (e: MessageEvent): void {
       throw new Error('Mediapipe had an error!');
     }
     console.log(endStatus, shots, windows);
-    console.log(recievedFrames);
     var resultCropWindows = [];
-    for (var i = 0; i < recievedFrames; i++) {
+    for (var i = 0; i < windows.value.size(); i++) {
       resultCropWindows.push(windows.value.get(i));
+    }
+    var resultShots = [];
+    for (var i = 0; i < shots.value.size(); i++) {
+      resultShots.push(shots.value.get(i));
     }
     // This posts the analysis result back to main script
     ctx.postMessage({
@@ -57,14 +57,14 @@ onmessage = function (e: MessageEvent): void {
       startTime: frameInfo.startTime,
       videoId: frameInfo.videoId,
       workerId: frameInfo.workerId,
+      shots: resultShots,
     });
   }
 };
 
-/** Processes input video array to frames */
+/** Processes input frames with autoflip wasm*/
 function handleFrames(frameInfo: any): void {
-  console.log(frameInfo);
-  console.log(`AUTOFLIP: video (${frameInfo.videoId}) received from main`);
+  console.log(`AUTOFLIP: video (${frameInfo.videoId}) received from main`, frameInfo);
 
   const frames = frameInfo.frames;
   const info = { width: frameInfo.width, height: frameInfo.height };
@@ -84,11 +84,10 @@ function handleFrames(frameInfo: any): void {
     // Do this to check if it saved correctly.
     if (!status.ok) {
       console.error(status);
-      throw new Error('Mediapipe had an error!');
+      throw new Error('Autoflip had an error!');
     }
     // Finish.
     ctx.Module._free(heapBytes.byteOffset);
-    recievedFrames++;
   }
   wait++;
 }

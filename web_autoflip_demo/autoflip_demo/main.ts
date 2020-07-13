@@ -38,12 +38,10 @@ startButton.onclick = startWorker;
 function handleOnChange(event: Event): void {
   let input = event.target as HTMLInputElement;
   if (!input.files || !input.files[0]) return;
-  let videofile = input.files[0];
-  console.log('MAIN: video file has been chosen');
-  console.log(videofile);
-
+  let videoFile = input.files[0];
+  console.log(`MAIN: video file has been chosen`, videoFile);
   // Previews the upload video
-  const videoURL = URL.createObjectURL(videofile);
+  const videoURL = URL.createObjectURL(videoFile);
   const videoPerview = <HTMLVideoElement>document.querySelector('#video-preview');
   videoPerview.src = `${videoURL}#t=0, videoCropInfo.endTime`;
 
@@ -53,23 +51,20 @@ function handleOnChange(event: Event): void {
   videoLoad.onloadedmetadata = function (): void {
     window.URL.revokeObjectURL(videoLoad.src);
     videoInfo = { duration: videoLoad.duration, height: videoLoad.videoHeight, width: videoLoad.videoWidth };
-    console.log(videoInfo);
-
+    console.log(`MAIN: get video infomation`, videoInfo);
     size = Math.floor(videoLoad.duration / processWindow) + 1;
-    console.log(size);
     console.log(`MAIN: this is the size of sections ${size}`);
-    console.log(ffmpegWorkers);
   };
 
   // Creates file reader to read video file as an array buffer
   const reader = new FileReader();
   reader.onload = function (): void {
     videoBuffer = reader.result as ArrayBuffer;
-    console.log('Main: video converted to array buffer');
+    console.log(`MAIN: video converted to array buffer`, videoBuffer);
   };
 
-  reader.readAsArrayBuffer(videofile);
-  videoLoad.src = URL.createObjectURL(videofile);
+  reader.readAsArrayBuffer(videoFile);
+  videoLoad.src = URL.createObjectURL(videoFile);
 }
 
 /** Starts workers to process ffmpeg and autoflip */
@@ -104,8 +99,7 @@ function startWorker(): void {
     }
     /** Sends the output frames from ffmpeg to autoflip worker */
     ffmpegWorkers[workerId].onmessage = function (e: MessageEvent): void {
-      console.log(`MAIN: Frames(${e.data.videoId}) received from worker ${e.data.workerId}`);
-      console.log(e.data);
+      console.log(`MAIN: frames(${e.data.videoId}) received from worker ${e.data.workerId}`, e.data);
       // Applys the cropInfo to current display video
       autoflipWorker.postMessage({
         frames: e.data.videoFrames,
@@ -130,19 +124,20 @@ function startWorker(): void {
 
   /** Renders video once got the result from autoflip */
   autoflipWorker.onmessage = function (e: MessageEvent) {
-    console.log(`MAIN: All frames received from worker ${e.data.workerId}`);
-    console.log(e.data);
+    console.log(`MAIN: all frames received from worker ${e.data.workerId}`, e.data);
     // apply the cropInfo to current display video
-    console.log(`MAIN: render the video crop windows`);
+    console.log(`MAIN: render the recevied video crop windows`);
     renderCroppedVideo(e.data);
   };
 }
 
 /** Displays cropped video */
 function renderCroppedVideo(videoCropInfo: any): void {
-  console.log(`MAIN: render function started`);
-  const cropInfo = videoCropInfo.cropWindows;
-  console.log(cropInfo);
+  var cropInfo = videoCropInfo.cropWindows;
+  cropInfo = remainChanged(cropInfo);
+  console.log(`MAIN: only keep the changed crop windows, one entry for continuous same windows`, cropInfo);
+  var shotsInfo = videoCropInfo.shots;
+  console.log(`MAIN: result shots`, shotsInfo);
   const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
   const videoURL = URL.createObjectURL(videoBlob);
   // Adds event for changing the crop windows when displaying
@@ -151,31 +146,32 @@ function renderCroppedVideo(videoCropInfo: any): void {
   video.addEventListener('timeupdate', function (): void {
     const leftBox = <SVGRectElement>document.querySelector('#leftBox');
     const rightBox = <SVGRectElement>document.querySelector('#rightBox');
+    const videoDisplayWidth = (video.height / videoInfo.height) * videoInfo.width;
+    const offset = (video.width - videoDisplayWidth) / 2;
     // width: 0.5625, height: 1, x: 0.21875, y: 0, time: 0
-    for (var i = 0; i < cropInfo.length; i++) {
-      if (this.currentTime > i * (1 / 15)) {
-        leftBox.style.width = `${video.width * cropInfo[i].x}`;
-        rightBox.setAttribute('x', `${video.width * (cropInfo[i].x + cropInfo[i].width)}`);
-        rightBox.style.width = `${video.width * (1 - cropInfo[i].x - cropInfo[i].width)}`;
+    for (let i = 0; i < cropInfo.length; i++) {
+      if (this.currentTime > cropInfo[i].time) {
+        leftBox.setAttribute('x', `${offset}`);
+        leftBox.style.width = `${videoDisplayWidth * cropInfo[i].x}`;
+        rightBox.setAttribute('x', `${videoDisplayWidth * (cropInfo[i].x + cropInfo[i].width) + offset}`);
+        rightBox.style.width = `${videoDisplayWidth * (1 - cropInfo[i].x - cropInfo[i].width)}`;
       }
     }
   });
 }
 
 /** Remains the changed crop windows */
-/*
-function remainChanged(cropInfo: any, startTime: number): any[] {
+function remainChanged(cropInfo: any) {
   var remained = [];
   var pre = JSON.stringify(cropInfo[0]);
-  cropInfo[0]['time'] = 0 + startTime;
+  cropInfo[0]['time'] = 0;
   remained.push(cropInfo[0]);
-  for (var i = 1; i < cropInfo.length; i++) {
+  for (let i = 1; i < cropInfo.length; i++) {
     if (pre !== JSON.stringify(cropInfo[i])) {
       pre = JSON.stringify(cropInfo[i]);
-      cropInfo['time'] = (1 / 15) * i + startTime;
+      cropInfo[i]['time'] = ((1 / 15) * i).toFixed(3);
       remained.push(cropInfo[i]);
     }
   }
   return remained;
 }
-*/
