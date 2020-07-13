@@ -23,9 +23,9 @@ const ffmpegWorkers: Worker[] = [
 const autoflipWorker = new Worker('autoflip_worker.js');
 const processWindow = 2;
 
-var videoBuffer = {} as ArrayBuffer;
-var videoInfo = {} as { duration: number; width: number; height: number };
-var size: number = 0;
+let videoBuffer = {} as ArrayBuffer;
+let videoInfo = {} as { duration: number; width: number; height: number };
+let size: number = 0;
 
 // Adds onchange event to input element
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
@@ -72,9 +72,9 @@ function startWorker(): void {
   console.log(`MAIN: workers started!`);
   const videoLength = videoInfo.duration;
   console.log('MAIN: this is the videoLength ' + videoLength);
-  var start = 0;
-  var videoId = 0;
-  var workerId = 0;
+  let start = 0;
+  let videoId = 0;
+  let workerId = 0;
   while (start < videoLength) {
     if (start + processWindow >= videoLength) {
       console.log(`MAIN : END: send the last video (${videoId}) to worker ${workerId}`);
@@ -133,10 +133,10 @@ function startWorker(): void {
 
 /** Displays cropped video */
 function renderCroppedVideo(videoCropInfo: any): void {
-  var cropInfo = videoCropInfo.cropWindows;
+  let cropInfo = videoCropInfo.cropWindows;
   cropInfo = remainChanged(cropInfo);
   console.log(`MAIN: only keep the changed crop windows, one entry for continuous same windows`, cropInfo);
-  var shotsInfo = videoCropInfo.shots;
+  let shotsInfo = videoCropInfo.shots;
   console.log(`MAIN: result shots`, shotsInfo);
   const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
   const videoURL = URL.createObjectURL(videoBlob);
@@ -162,8 +162,8 @@ function renderCroppedVideo(videoCropInfo: any): void {
 
 /** Remains the changed crop windows */
 function remainChanged(cropInfo: any) {
-  var remained = [];
-  var pre = JSON.stringify(cropInfo[0]);
+  let remained = [];
+  let pre = JSON.stringify(cropInfo[0]);
   cropInfo[0]['time'] = 0;
   remained.push(cropInfo[0]);
   for (let i = 1; i < cropInfo.length; i++) {

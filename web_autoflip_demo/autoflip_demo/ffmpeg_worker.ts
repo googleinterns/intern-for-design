@@ -18,7 +18,7 @@ importScripts('visual_design_service_web_assembly_api.js', 'ffmpeg.js');
 /** Parses a string command to arguments. */
 function parseArguments(text: string): string[] {
   text = text.replace(/\s+/g, ' ');
-  var args: string[] = [];
+  let args: string[] = [];
   // This allows double quotes to not split args.
   text.split('"').forEach(function (t, i): void {
     t = t.trim();

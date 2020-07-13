@@ -4,5 +4,9 @@
 # Allow config files written in javascript files.
 !.*.js
 
+# Allow ffmepg/autoflip wasm files written in javascript files.
+!ffmpeg.js
+!*_api*.js
+
 # Ingore all node_modules
 node_modules

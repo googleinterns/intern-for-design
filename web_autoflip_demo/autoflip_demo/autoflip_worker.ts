@@ -1,13 +1,13 @@
 importScripts('visual_design_service_web_assembly_api.js');
 const ctx: any = self;
 
-var wait: number = 0;
-var count: number = 0;
-var frameInfoArray: any[] = [];
+let wait: number = 0;
+let count: number = 0;
+let frameInfoArray: any[] = [];
 
 /** Analyzes the input frames and output caculated crop windows for each frame*/
 onmessage = function (e: MessageEvent): void {
-  var frameInfo = e.data;
+  let frameInfo = e.data;
   console.log(`AUTOFLIP: check if the video(${frameInfo.videoId}) are expected`);
   count++;
   if (wait !== frameInfo.videoId) {
@@ -41,12 +41,12 @@ onmessage = function (e: MessageEvent): void {
       throw new Error('Mediapipe had an error!');
     }
     console.log(endStatus, shots, windows);
-    var resultCropWindows = [];
-    for (var i = 0; i < windows.value.size(); i++) {
+    let resultCropWindows = [];
+    for (let i = 0; i < windows.value.size(); i++) {
       resultCropWindows.push(windows.value.get(i));
     }
-    var resultShots = [];
-    for (var i = 0; i < shots.value.size(); i++) {
+    let resultShots = [];
+    for (let i = 0; i < shots.value.size(); i++) {
       resultShots.push(shots.value.get(i));
     }
     // This posts the analysis result back to main script
