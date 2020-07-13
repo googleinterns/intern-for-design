@@ -30,6 +30,7 @@
 #include "mediapipe/framework/port/opencv_imgproc_inc.h"
 #include "mediapipe/framework/port/opencv_dnn_inc.h"
 #include "mediapipe/framework/port/opencv_highgui_inc.h"
+#include "mediapipe/framework/port/opencv_video_inc.h"
 
 
 using mediapipe::Detection;
@@ -53,7 +54,7 @@ const std::vector<std::string> kTextLabelsOne{"AutoFlip"};
 const std::vector<cv::Point2f> kTopLeftCornersTwo{cv::Point2f(0.4, 0.7), cv::Point2f(0.8, 0.1)};
 const std::vector<std::string> kTextLabelsTwo{"textdetection", "TEXTDETECTION"};
 
-const std::string kModelPath = "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb";
+const std::string kModelPath = "mediapipe/models/frozen_east_text_detection.pb";
 const std::string kWinName = "Unit Test for Text Detection Calculator";
 
 constexpr char kConfig[] = R"(
@@ -108,49 +109,6 @@ void CheckOutps(const std::vector<cv::Point2f>& top_left_corners,
   const auto& regions = output_packets[0].Get<DetectionSet>();
   SalientRegion text;
   ASSERT_EQ(text_labels.size() <= regions.detections().size(), true);
-}
-
-void ShowFrames(const std::vector<cv::Point2f>& top_left_corners,
-              const std::vector<std::string>& text_labels, const float font_scale,
-              const cv::Scalar font_color, CalculatorRunner* runner) {
-  ASSERT_EQ(top_left_corners.size(), text_labels.size());
-  auto input_frame =
-      ::absl::make_unique<ImageFrame>(ImageFormat::SRGB, kImagewidth, kImageheight);
-  cv::Mat frame = mediapipe::formats::MatView(input_frame.get());
-  for (int i = 0; i < top_left_corners.size(); ++i) {
-    cv::Point2f top_left_corner = top_left_corners[i];
-    top_left_corner.x *= kImagewidth;
-    top_left_corner.y *= kImageheight;
-    cv::putText(frame, text_labels[i], top_left_corner, cv::FONT_HERSHEY_SIMPLEX, font_scale, font_color);
-  }
-
-  const std::vector<Packet>& output_packets =
-      runner->Outputs().Tag(kOutputRegion).packets;
-  const auto& regions = output_packets[0].Get<DetectionSet>();
-  SalientRegion text;
-  for (int i = 0; i < regions.detections().size(); ++i) {
-    text = regions.detections(i);
-    cv::Rect2f box(text.location_normalized().x(),text.location_normalized().y(), 
-              text.location_normalized().width(), text.location_normalized().height());
-    std::vector<cv::Point2f> vertices;
-    vertices.push_back(box.tl());
-
-    for (int j = 0; j < vertices.size(); ++j) {
-        vertices[j].x *= kImagewidth;
-        vertices[j].y *= kImageheight;
-    }
-
-    for (int j = 0; j < 4; ++j) {
-        line(frame, vertices[j], vertices[(j+1) % 4], cv::Scalar(0, 255, 0), 1);
-
-    std::string label = cv::format("%.2f", text.score());
-    cv::putText(frame, label, vertices[0], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255));
-    }
-  }
-  cv::namedWindow(kWinName);
-  cv::imshow(kWinName, frame);
-
-  input_frame.release();
 }
 
 // Checks that calculator works when there is no model path.

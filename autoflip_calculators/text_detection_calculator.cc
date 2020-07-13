@@ -42,9 +42,6 @@ const float kScaleFactor = 1.0;
 const float kMeanR = 103.94;
 const float kMeanG = 116.78;
 const float kMeanB = 123.68;
-// Input fore EAST model has to be a multiple of 32.
-const int kEastWidth = 320;
-const int kEastHeight = 320;
 
 
 // This calculator detects texts in the images and converts detected texts 
@@ -60,6 +57,8 @@ const int kEastHeight = 320;
 //        model_path: "/path/to/modelname.pb"
 //        confidence_threshold: 0.5
 //        nms_threshold: 0.4
+//        east_width: 320
+//        east_height: 320
 //      }
 //    }
 //
@@ -152,7 +151,7 @@ TextDetectionCalculator::TextDetectionCalculator() {}
 void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, cv::Mat* geometry) {
   cv::Mat blob;
   // Mean subtraction and scalling.
-  cv::dnn::blobFromImage(frame, blob, kScaleFactor, cv::Size(kEastWidth, kEastHeight), 
+  cv::dnn::blobFromImage(frame, blob, kScaleFactor, cv::Size(options_.east_width(), options_.east_height()), 
                 cv::Scalar(kMeanB, kMeanG, kMeanR), true, false);
   // Detect the text.
   detector_.setInput(blob);
@@ -211,12 +210,12 @@ void TextDetectionCalculator::DetectText(const cv::Mat& frame, cv::Mat* scores, 
     cv::Rect2f box = bboxes[indices[i]].boundingRect();
     float text_confidence = confidences[indices[i]];
     
-    // Normalize the bounding box, note that the frame is
-    // resized to (EAST_WIDTH, EAST_HEIGHT) in DetectText.
-    box.x /= kEastWidth;
-    box.y /= kEastHeight;
-    box.width /= kEastWidth;
-    box.height /= kEastHeight;
+    // Normalize the bounding box, note that the frame is resized
+    // to (options_.east_width(), options_.east_height()) in DetectText.
+    box.x /= options_.east_width();
+    box.y /= options_.east_height();
+    box.width /= options_.east_width();
+    box.height /= options_.east_height();
     float x = std::max(0.0f, box.x);
     float y = std::max(0.0f, box.y);
     float width =

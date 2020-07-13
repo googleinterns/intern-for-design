@@ -40,8 +40,15 @@ message TextDetectionCalculatorOptions {
 
   // Threshold to determine whether a target is text or not.
   // If a target's socre is greater than it, target is text.
+  // confidence_threshold must be no greater than 1.
   optional float confidence_threshold = 4 [default = 0.5];
   
-  // Threshold for non maximum supression.
+  // Threshold for non maximum supression. It must be no
+  // greater than 1.
   optional float nms_threshold = 5 [default = 0.4];
+
+  // Input dimensions of EAST model. It has to be a multiple
+  // of 32.
+  optional int32 east_width = 6 [default = 320];
+  optional int32 east_height = 7 [default = 320];
 }
