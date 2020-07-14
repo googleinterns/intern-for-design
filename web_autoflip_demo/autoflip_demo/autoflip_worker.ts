@@ -13,12 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+interface FrameInfo {
+  frames: { name: string; data: ArrayBuffer }[];
+  videoId: number;
+  workerId: number;
+  width: number;
+  height: number;
+  startTime: number;
+  end: boolean;
+  size: number;
+}
+
 importScripts('visual_design_service_web_assembly_api.js');
 const ctx: any = self;
 
 let wait: number = 0;
 let count: number = 0;
-let frameInfoArray: any[] = [];
+let frameInfoArray: FrameInfo[] = [];
 
 /** Analyzes the input frames and output caculated crop windows for each frame*/
 onmessage = function (e: MessageEvent): void {
@@ -67,7 +78,6 @@ onmessage = function (e: MessageEvent): void {
     // This posts the analysis result back to main script
     ctx.postMessage({
       type: 'finishedAnalysis',
-      resultShots: shots.value,
       cropWindows: resultCropWindows,
       startTime: frameInfo.startTime,
       videoId: frameInfo.videoId,
@@ -78,7 +88,7 @@ onmessage = function (e: MessageEvent): void {
 };
 
 /** Processes input frames with autoflip wasm*/
-function handleFrames(frameInfo: any): void {
+function handleFrames(frameInfo: FrameInfo): void {
   console.log(`AUTOFLIP: video (${frameInfo.videoId}) received from main`, frameInfo);
 
   const frames = frameInfo.frames;

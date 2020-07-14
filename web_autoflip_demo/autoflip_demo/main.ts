@@ -14,6 +14,23 @@ limitations under the License.
 */
 
 // Creates fixed workers (ffmpeg: 4, autoflip: 1)
+
+interface CropInfo {
+  type: string;
+  cropWindows: CropWindow[];
+  startTime: number;
+  videoId: number;
+  workerId: number;
+  shots: number[];
+}
+interface CropWindow {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  time: number;
+}
+
 const ffmpegWorkers: Worker[] = [
   new Worker('ffmpeg_worker.js'),
   new Worker('ffmpeg_worker.js'),
@@ -113,7 +130,7 @@ function startWorker(): void {
       });
     };
     start += processWindow;
-    //Loops to assign the worker
+    // Loops to assign the worker
     if (workerId === 3) {
       workerId = 0;
     } else {
@@ -132,7 +149,7 @@ function startWorker(): void {
 }
 
 /** Displays cropped video */
-function renderCroppedVideo(videoCropInfo: any): void {
+function renderCroppedVideo(videoCropInfo: CropInfo): void {
   let cropInfo = videoCropInfo.cropWindows;
   cropInfo = remainChanged(cropInfo);
   console.log(`MAIN: only keep the changed crop windows, one entry for continuous same windows`, cropInfo);
@@ -161,7 +178,7 @@ function renderCroppedVideo(videoCropInfo: any): void {
 }
 
 /** Remains the changed crop windows */
-function remainChanged(cropInfo: any) {
+function remainChanged(cropInfo: CropWindow[]) {
   let remained = [];
   let pre = JSON.stringify(cropInfo[0]);
   cropInfo[0]['time'] = 0;
@@ -169,7 +186,7 @@ function remainChanged(cropInfo: any) {
   for (let i = 1; i < cropInfo.length; i++) {
     if (pre !== JSON.stringify(cropInfo[i])) {
       pre = JSON.stringify(cropInfo[i]);
-      cropInfo[i]['time'] = ((1 / 15) * i).toFixed(3);
+      cropInfo[i]['time'] = Number(((1 / 15) * i).toFixed(3));
       remained.push(cropInfo[i]);
     }
   }
