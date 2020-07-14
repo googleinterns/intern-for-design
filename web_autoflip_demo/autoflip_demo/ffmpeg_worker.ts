@@ -32,7 +32,7 @@ function parseArguments(text: string): string[] {
 }
 
 /** Sends output data back to main script. */
-onmessage = function (e): void {
+onmessage = function (e: MessageEvent): void {
   const ctx = self as any;
   console.log(`FFMPEG: ffmpeg Worker ${e.data.workerId}: video array received from main`);
   console.log(`FFMPEG: going to process video array(${e.data.videoId})`, e.data);

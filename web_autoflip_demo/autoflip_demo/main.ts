@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Creates fixed workers (ffmpeg: 4, autoflip: 1)
-
 interface CropInfo {
   type: string;
   cropWindows: CropWindow[];
@@ -31,6 +29,7 @@ interface CropWindow {
   time: number;
 }
 
+// Creates fixed workers (ffmpeg: 4, autoflip: 1)
 const ffmpegWorkers: Worker[] = [
   new Worker('ffmpeg_worker.js'),
   new Worker('ffmpeg_worker.js'),
@@ -117,7 +116,6 @@ function startWorker(): void {
     /** Sends the output frames from ffmpeg to autoflip worker */
     ffmpegWorkers[workerId].onmessage = function (e: MessageEvent): void {
       console.log(`MAIN: frames(${e.data.videoId}) received from worker ${e.data.workerId}`, e.data);
-      // Applys the cropInfo to current display video
       autoflipWorker.postMessage({
         frames: e.data.videoFrames,
         videoId: e.data.videoId,
@@ -165,7 +163,7 @@ function renderCroppedVideo(videoCropInfo: CropInfo): void {
     const rightBox = <SVGRectElement>document.querySelector('#rightBox');
     const videoDisplayWidth = (video.height / videoInfo.height) * videoInfo.width;
     const offset = (video.width - videoDisplayWidth) / 2;
-    // width: 0.5625, height: 1, x: 0.21875, y: 0, time: 0
+    // crop window example: width: 0.5625, height: 1, x: 0.21875, y: 0, time: 0
     for (let i = 0; i < cropInfo.length; i++) {
       if (this.currentTime > cropInfo[i].time) {
         leftBox.setAttribute('x', `${offset}`);
