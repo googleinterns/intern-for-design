@@ -65,7 +65,11 @@ onmessage = function (e: MessageEvent): void {
         // Saving array buffer to the wasm heap memory.
         const numBytes = image.byteLength;
         const ptr = ctx.Module._malloc(numBytes);
-        const heapBytes = new Uint8Array(ctx.Module.HEAPU8.buffer, ptr, numBytes);
+        const heapBytes = new Uint8Array(
+          ctx.Module.HEAPU8.buffer,
+          ptr,
+          numBytes,
+        );
         const uint8Image = new Uint8Array(image);
         heapBytes.set(uint8Image);
         // end saving memory.
@@ -108,7 +112,6 @@ onmessage = function (e: MessageEvent): void {
       // This posts the analysis result back to main script
       ctx.postMessage({
         type: 'finishedAnalysis',
-        resultShots: shots.value,
         cropWindows: resultCropWindows,
         shots: resultShots,
       });

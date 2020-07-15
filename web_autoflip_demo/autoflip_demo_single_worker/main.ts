@@ -13,25 +13,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/** The interface defines a cropping information object*/
 interface CropInfo {
+  // the information type, like "finishedAnalysis", "sectionAnalysis"
   type: string;
+  // the crop windows for processed frames
   cropWindows: CropWindow[];
-  startTime: number;
-  videoId: number;
-  workerId: number;
+  // the shots positions for processed frames
   shots: number[];
 }
+
+/** The interface defines a cropping window object for a single frame*/
 interface CropWindow {
+  // the width of the crop window
   width: number;
+  // the height of the crop window
   height: number;
+  // the x position of left top point of the crop window
   x: number;
+  // the y position of left top point of the crop window
   y: number;
+  // the time position of the corresponding frame in video progress
   time: number;
 }
 
+/** The interface defines a video information object*/
+interface VideoInfo {
+  // the duration of the video
+  duration: number;
+  // the width of the video dimension
+  width: number;
+  // the height of the video dimension
+  height: number;
+}
+
 const myWorker = new Worker('worker.js');
-let videoBuffer = {} as ArrayBuffer;
-let videoInfo = {} as { duration: number; width: number; height: number };
+let videoBuffer: ArrayBuffer = new ArrayBuffer(1);
+let videoInfo: VideoInfo = { duration: 0, width: 0, height: 0 };
 
 // Adds onchange event to input element
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
@@ -49,7 +67,9 @@ function handleOnChange(event: Event): void {
 
   // Previews the upload video
   const videoURL = URL.createObjectURL(videoFile);
-  const videoPerview = <HTMLVideoElement>document.querySelector('#video-preview');
+  const videoPerview = <HTMLVideoElement>(
+    document.querySelector('#video-preview')
+  );
   videoPerview.src = `${videoURL}#t=0, videoCropInfo.endTime`;
 
   // Creates element to load video data to fetch video duration, height, width
@@ -57,7 +77,11 @@ function handleOnChange(event: Event): void {
   videoLoad.preload = 'metadata';
   videoLoad.onloadedmetadata = function (): void {
     window.URL.revokeObjectURL(videoLoad.src);
-    videoInfo = { duration: videoLoad.duration, height: videoLoad.videoHeight, width: videoLoad.videoWidth };
+    videoInfo = {
+      duration: videoLoad.duration,
+      height: videoLoad.videoHeight,
+      width: videoLoad.videoWidth,
+    };
     console.log(`MAIN: get video infomation`, videoInfo);
   };
 
@@ -95,7 +119,10 @@ function startWorker(): void {
 function renderCroppedVideo(videoCropInfo: CropInfo): void {
   let cropInfo = videoCropInfo.cropWindows;
   cropInfo = remainChanged(cropInfo);
-  console.log(`MAIN: only keep the changed crop windows, one entry for continuous same windows`, cropInfo);
+  console.log(
+    `MAIN: only keep the changed crop windows, one entry for continuous same windows`,
+    cropInfo,
+  );
   let shotsInfo = videoCropInfo.shots;
   console.log(`MAIN: result shots`, shotsInfo);
   const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
@@ -106,15 +133,21 @@ function renderCroppedVideo(videoCropInfo: CropInfo): void {
   video.addEventListener('timeupdate', function (): void {
     const leftBox = <SVGRectElement>document.querySelector('#leftBox');
     const rightBox = <SVGRectElement>document.querySelector('#rightBox');
-    const videoDisplayWidth = (video.height / videoInfo.height) * videoInfo.width;
+    const videoDisplayWidth =
+      (video.height / videoInfo.height) * videoInfo.width;
     const offset = (video.width - videoDisplayWidth) / 2;
     // crop window example: width: 0.5625, height: 1, x: 0.21875, y: 0, time: 0
     for (let i = 0; i < cropInfo.length; i++) {
       if (this.currentTime > cropInfo[i].time) {
         leftBox.setAttribute('x', `${offset}`);
         leftBox.style.width = `${videoDisplayWidth * cropInfo[i].x}`;
-        rightBox.setAttribute('x', `${videoDisplayWidth * (cropInfo[i].x + cropInfo[i].width) + offset}`);
-        rightBox.style.width = `${videoDisplayWidth * (1 - cropInfo[i].x - cropInfo[i].width)}`;
+        rightBox.setAttribute(
+          'x',
+          `${videoDisplayWidth * (cropInfo[i].x + cropInfo[i].width) + offset}`,
+        );
+        rightBox.style.width = `${
+          videoDisplayWidth * (1 - cropInfo[i].x - cropInfo[i].width)
+        }`;
       }
     }
   });
