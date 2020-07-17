@@ -1,0 +1,7 @@
+/* Import jsoneditor css. */
+@import "~jsoneditor/dist/jsoneditor.min.css";
+
+#json-editor-container {
+  width: 400px;
+  height: 400px;
+}

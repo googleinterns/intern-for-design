@@ -1,0 +1,13 @@
+# Ignores compiled TypeScript files.
+*.js
+
+# Allow config files written in javascript files.
+!.*.js
+!webpack.config.js
+
+# Ignore all node_modules.
+node_modules
+
+# Ignore contents of dist folder except index.html.
+dist/*
+!dist/index.html
