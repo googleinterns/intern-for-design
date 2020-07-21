@@ -26,16 +26,21 @@
 #include "mediapipe/framework/port/status.h"
 #include "mediapipe/framework/port/status_matchers.h"
 #include "mediapipe/framework/port/opencv_core_inc.h"
+#include "mediapipe/framework/formats/image_frame.h"
+#include "mediapipe/framework/formats/image_frame_opencv.h"
 
 
 namespace mediapipe {
 namespace autoflip {
 namespace {
 
+constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputROI[] = "ROIS_FROM_LANDMARKS";
 constexpr char kOutputROI[] = "ROIS";
 
+const int32 kImagewidth = 800; 
+const int32 kImageheight = 600;
 const int32 kFaceMeshLandmarks = 468;
 
 // Lip contour landmarks.
@@ -56,6 +61,7 @@ const std::vector<float> kRoiValueTrivial{0.5, 0.4, 0.2, 0.6, 0.0};
 
 constexpr char kConfig[] = R"(
     calculator: "LipTrackCalculator"
+    input_stream: "VIDEO:input_video"
     input_stream: "LANDMARKS:multi_face_landmarks"
     input_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
     output_stream: "ROIS:active_speakers_rects"
@@ -103,6 +109,12 @@ CalculatorGraphConfig::Node MakeConfig(const std::string base_config) {
 
 void SetInputs(const int32 landmark_num, const std::map< int32, std::vector<float> >& landmark_value, 
           const int32 roi_num, const std::vector<float>& roi_value, CalculatorRunner* runner) {
+  // Setup video
+  auto input_frame =
+    ::absl::make_unique<ImageFrame>(ImageFormat::SRGB, kImagewidth, kImageheight);
+  runner->MutableInputs()->Tag(kInputVideo).packets.push_back(
+    Adopt(input_frame.release()).At(Timestamp::PostStream()));
+
   // Setup landmarks
   auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
   for (int i = 0; i < landmark_num; ++i) {
@@ -112,7 +124,7 @@ void SetInputs(const int32 landmark_num, const std::map< int32, std::vector<floa
   }
   runner->MutableInputs()->Tag(kInputLandmark).packets.push_back(
       Adopt(vec_landmarks_list.release()).At(Timestamp::PostStream()));
-  
+
   // Setup ROIS
   auto vec_roi = absl::make_unique<std::vector<NormalizedRect>>();
   for (int i = 0; i < roi_num; ++i) {
@@ -140,7 +152,6 @@ void CheckOutputs(const int32 gt_output_num, const std::vector<float>& roi_value
     ASSERT_EQ(roi_value[4], bbox.rotation());
   }
 }
-
 
 // One landmarksList, all the landmarks' value and ROIs' value are the same.
 TEST(LipTrackCalculatorTest, SameOneLandmarkList) {

@@ -28,11 +28,14 @@
 #include "mediapipe/framework/port/status_builder.h"
 #include "mediapipe/framework/port/opencv_core_inc.h"
 #include "mediapipe/framework/port/opencv_imgproc_inc.h"
+#include "mediapipe/framework/formats/image_frame.h"
+#include "mediapipe/framework/formats/image_frame_opencv.h"
 
 
 namespace mediapipe {
 namespace autoflip {
 
+constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputROI[] = "ROIS_FROM_LANDMARKS";
 constexpr char kOutputROI[] = "ROIS";
@@ -50,6 +53,7 @@ const int32 kFaceMeshLandmarks = 468;
 // Lip contour is obtained from face mesh. The output is speakers' face bound boxes. 
 // Example:
 //    calculator: "LipTrackCalculator"
+//    input_stream: "VIDEO:input_video"
 //    input_stream: "LANDMARKS:multi_face_landmarks"
 //    input_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
 //    output_stream: "ROIS:active_speakers_rects"
@@ -83,7 +87,7 @@ class LipTrackCalculator : public CalculatorBase {
   int MatchFace(const NormalizedRect& face_bbox);
   // Determine whether the face is active speaker or not.
   bool IsActiveSpeaker(const std::deque<float>& face_lip_statistics);
-  // Calculator Euclidean distance between two landmarks.
+  // Calculator the absolute Euclidean distance between two landmarks.
   float GetDistance(const NormalizedLandmark& mark_1, const NormalizedLandmark& mark_2);
   // Calculator IOU of two face bboxes.
   float GetIOU(const NormalizedRect& bbox_1, const NormalizedRect& bbox_2);
@@ -94,7 +98,9 @@ class LipTrackCalculator : public CalculatorBase {
   std::vector<NormalizedRect> face_bbox_;
   // Face statistics in previous frames.
   std::map<int32, std::deque<float>> face_statistics_;
-
+  // Dimensions of video frame
+  int frame_width_;
+  int frame_height_;
 }; // end with inheritance
 
 REGISTER_CALCULATOR(LipTrackCalculator);
@@ -103,6 +109,7 @@ LipTrackCalculator::LipTrackCalculator() {}
 
 ::mediapipe::Status LipTrackCalculator::GetContract(
     mediapipe::CalculatorContract* cc) {
+  cc->Inputs().Tag(kInputVideo).Set<ImageFrame>();
   if (cc->Inputs().HasTag(kInputLandmark)) {
     cc->Inputs().Tag(kInputLandmark).Set<std::vector<NormalizedLandmarkList>>();
   }
@@ -127,6 +134,12 @@ LipTrackCalculator::LipTrackCalculator() {}
   std::vector<NormalizedRect> cur_face_bbox;
   std::map<int32, std::deque<float>> cur_face_statistics;
   std::vector<float> statistics;
+  
+  cv::Mat frame;
+  frame = mediapipe::formats::MatView(
+      &cc->Inputs().Tag(kInputVideo).Get<ImageFrame>());
+  frame_width_ = frame.cols;
+  frame_height_ = frame.rows;
 
   const auto& input_landmark_lists = 
         cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
@@ -151,7 +164,6 @@ LipTrackCalculator::LipTrackCalculator() {}
     else {
       cur_face_statistics[cur_face_idx].push_back(statistics[i]);
     }
-
     if (IsActiveSpeaker(cur_face_statistics[cur_face_idx]))
       output_bbox->push_back(bbox);
   }
@@ -167,8 +179,8 @@ LipTrackCalculator::LipTrackCalculator() {}
 
 float LipTrackCalculator:: GetDistance(const NormalizedLandmark& mark_1,
                                       const NormalizedLandmark& mark_2) {
-  return std::sqrt(std::pow(mark_1.x()-mark_2.x(), 2) + std::pow(mark_1.y()-mark_2.y(), 2)
-                  + std::pow(mark_1.z()-mark_2.z(), 2));
+  return std::sqrt(std::pow((mark_1.x()-mark_2.x())*frame_width_, 2) 
+  + std::pow((mark_1.y()-mark_2.y())*frame_height_, 2));
 }
 
 void LipTrackCalculator:: GetStatistics(const std::vector<NormalizedLandmarkList>& landmark_lists, 
