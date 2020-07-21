@@ -37,6 +37,7 @@ node {
 # Detect the active speakers.
 node {
   calculator: "LipTrackCalculator"
+  input_stream: "VIDEO:input_video"
   input_stream: "LANDMARKS:multi_face_landmarks"
   input_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
   output_stream: "ROIS:active_speakers_rects"
