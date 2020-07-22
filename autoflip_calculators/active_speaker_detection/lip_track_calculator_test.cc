@@ -30,6 +30,7 @@
 #include "mediapipe/framework/formats/image_frame_opencv.h"
 
 
+
 namespace mediapipe {
 namespace autoflip {
 namespace {
@@ -44,19 +45,27 @@ const int32 kImageheight = 600;
 const int32 kFaceMeshLandmarks = 468;
 
 // Lip contour landmarks.
+// Lip left inner corner: 78, lip right inner corner: 308.
+// Lip upper {82, 13, 312}, lip lower {87, 14, 317};
 const std::vector<int32> kLandmarksIdx{78, 308, 82, 13, 312, 87, 14, 317};
 // x,y,z of 6 landmarks
-const std::map< int32, std::vector<float> > kLandmaksValueTrivial{
-  {78, {0,0,0}}, 
-  {308, {0,0,0}}, 
-  {82, {0,0,0}}, 
-  {13, {0,0,0}},
-  {312, {0,0,0}}, 
-  {87, {0,0,0}}, 
-  {14, {0,0,0}}, 
-  {317, {0,0,0}}
-  };
-const std::vector<float> kRoiValueTrivial{0.5, 0.4, 0.2, 0.6, 0.0};
+const std::vector<std::vector<float>> kLandmaksValueOneClose{{0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0}};
+const std::vector<std::vector<float>> kLandmaksValueOneOpen{{0.1,0.5,0, 0.5,0.5,0, 0.2,0.6,0, 0.3,0.6,0, 0.4,0.6,0, 0.2,0.4,0, 0.3,0.4,0, 0.4,0.4,0}};
+const std::vector<std::vector<float>> kLandmaksValueTwoSame{{0.1,0.5,0, 0.5,0.5,0, 0.2,0.6,0, 0.3,0.6,0, 0.4,0.6,0, 0.2,0.4,0, 0.3,0.4,0, 0.4,0.4,0},
+                                                        {0.1,0.5,0, 0.5,0.5,0, 0.2,0.6,0, 0.3,0.6,0, 0.4,0.6,0, 0.2,0.4,0, 0.3,0.4,0, 0.4,0.4,0}};
+const std::vector<std::vector<float>> kLandmaksValueTwoDiff{{0.1,0.5,0, 0.5,0.5,0, 0.2,0.6,0, 0.3,0.6,0, 0.4,0.6,0, 0.2,0.4,0, 0.3,0.4,0, 0.4,0.4,0},
+                                                        {0.1,0.5,0, 0.5,0.5,0, 0.2,0.5,0, 0.3,0.5,0, 0.4,0.5,0, 0.2,0.5,0, 0.3,0.5,0, 0.4,0.5,0}};
+
+// ROI values
+const std::vector<std::vector<float>> kRoiValueOne{{0.5, 0.4, 0.2, 0.6, 0.0}};
+const std::vector<std::vector<float>> kRoiValueTwoSame{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.6, 0.4, 0.2, 0.6, 0.0}};
+const std::vector<std::vector<float>> kRoiValueTwoSameRotate{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.5, 0.4, 0.2, 0.6, M_PI/3.0}};
+const std::vector<std::vector<float>> kRoiValueTwoDiff{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.7, 0.4, 0.2, 0.6, 0.0}};
+
+// Time stamp
+const std::vector<int64> kTimeStampOne{2000};
+const std::vector<int64> kTimeStampTwo{2000, 4000};
+
 
 
 constexpr char kConfig[] = R"(
@@ -67,10 +76,9 @@ constexpr char kConfig[] = R"(
     output_stream: "ROIS:active_speakers_rects"
     options: {
       [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
-        frame_history: 1
-        iou_threshold: 0.5
+        iou_threshold: 0.2
         lip_mean_threshold: 0.3
-        lip_variance_threshold: 0.3
+        lip_variance_threshold: 0.0
       }
     })";
 
@@ -82,16 +90,16 @@ NormalizedLandmark CreateLandmark(const float x, const float y, const float z) {
   return landmark;
 }
 
-void CreateLandmarkList(const std::map< int32, std::vector<float> >& values, NormalizedLandmarkList* list) {
+void CreateLandmarkList(const std::vector<float>& values, NormalizedLandmarkList* list) {
   for (int i = 0; i < kFaceMeshLandmarks; ++i) 
     *list->add_landmark() = CreateLandmark(0.0f, 0.0f, 0.0f);
 
-  // TODO There is error here. Need to fix it.
-  // for (auto& idx : kLandmarksIdx){
-  //   list->landmark(idx).set_x(values[idx][0]);
-  //   // list->landmark(idx)->set_y(values[idx][1]);
-  //   // list->landmark(idx)->set_z(values[idx][2]);
-  // }
+  int i = 0;
+  for (auto& idx : kLandmarksIdx){
+    list->mutable_landmark(idx)->set_x(values[i++]);
+    list->mutable_landmark(idx)->set_y(values[i++]);
+    list->mutable_landmark(idx)->set_z(values[i++]);
+  }
 }
 
 void CreateRoi(const std::vector<float>& values, NormalizedRect* roi) {
@@ -102,66 +110,129 @@ void CreateRoi(const std::vector<float>& values, NormalizedRect* roi) {
   roi->set_rotation(values[4]);
 }
 
-CalculatorGraphConfig::Node MakeConfig(const std::string base_config) {
+CalculatorGraphConfig::Node MakeConfig(const std::string base_config, const int32 frame_history) {
   auto config = ParseTextProtoOrDie<CalculatorGraphConfig::Node>(base_config);
+  config.mutable_options()
+    ->MutableExtension(LipTrackCalculatorOptions::ext)
+    ->set_frame_history(frame_history);
   return config;
 }
 
-void SetInputs(const int32 landmark_num, const std::map< int32, std::vector<float> >& landmark_value, 
-          const int32 roi_num, const std::vector<float>& roi_value, CalculatorRunner* runner) {
+void AddScene(const std::vector<float>& landmark_value, const int64 time_ms, 
+              const std::vector<float>& roi_value, CalculatorRunner::StreamContentsSet* inputs) {
+  // Each scene contains one input frame, one landmarkList and one ROI.
+  Timestamp timestamp(time_ms);
   // Setup video
   auto input_frame =
     ::absl::make_unique<ImageFrame>(ImageFormat::SRGB, kImagewidth, kImageheight);
-  runner->MutableInputs()->Tag(kInputVideo).packets.push_back(
-    Adopt(input_frame.release()).At(Timestamp::PostStream()));
+  inputs->Tag(kInputVideo).packets.push_back(
+    Adopt(input_frame.release()).At(timestamp));
 
   // Setup landmarks
   auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
-  for (int i = 0; i < landmark_num; ++i) {
-    NormalizedLandmarkList landmarks_list;
-    CreateLandmarkList(landmark_value, &landmarks_list);
-    vec_landmarks_list->push_back(landmarks_list);
-  }
-  runner->MutableInputs()->Tag(kInputLandmark).packets.push_back(
-      Adopt(vec_landmarks_list.release()).At(Timestamp::PostStream()));
+  NormalizedLandmarkList landmarks_list;
+  CreateLandmarkList(landmark_value, &landmarks_list);
+  vec_landmarks_list->push_back(landmarks_list);
+  inputs->Tag(kInputLandmark).packets.push_back(
+      Adopt(vec_landmarks_list.release()).At(timestamp));
 
   // Setup ROIS
   auto vec_roi = absl::make_unique<std::vector<NormalizedRect>>();
-  for (int i = 0; i < roi_num; ++i) {
-    NormalizedRect roi;
-    CreateRoi(roi_value, &roi);
-    vec_roi->push_back(roi);
-  }
-  runner->MutableInputs()->Tag(kInputROI).packets.push_back(
-      Adopt(vec_roi.release()).At(Timestamp::PostStream()));
+  NormalizedRect roi;
+  CreateRoi(roi_value, &roi);
+  vec_roi->push_back(roi);
+  inputs->Tag(kInputROI).packets.push_back(
+      Adopt(vec_roi.release()).At(timestamp));
 }
 
+void SetInputs(const std::vector<std::vector<float>>& landmark_values,
+              const std::vector<int64>& time_stamps_ms, 
+              const std::vector<std::vector<float>>& roi_values,
+              CalculatorRunner* runner) {
+  for (int i = 0; i < time_stamps_ms.size(); ++i){
+    AddScene(landmark_values[i], time_stamps_ms[i], roi_values[i], runner->MutableInputs());
+  }
+}
 
-void CheckOutputs(const int32 gt_output_num, const std::vector<float>& roi_value, CalculatorRunner* runner) {
+void CheckOutputs(const int32 scene_num, const std::vector<int32>& gt_output_nums,
+    const std::vector<std::vector<float>>& roi_values, CalculatorRunner* runner) {
   const std::vector<Packet>& output_packets =
       runner->Outputs().Tag(kOutputROI).packets;
-  ASSERT_EQ(1, output_packets.size());
+  ASSERT_EQ(scene_num, output_packets.size());
   
-  const auto& bboxes = output_packets[0].Get<std::vector<NormalizedRect>>();
-  ASSERT_EQ(gt_output_num, bboxes.size());
-  for (auto& bbox : bboxes) {
-    ASSERT_EQ(roi_value[0], bbox.x_center());
-    ASSERT_EQ(roi_value[1], bbox.y_center());
-    ASSERT_EQ(roi_value[2], bbox.width());
-    ASSERT_EQ(roi_value[3], bbox.height());
-    ASSERT_EQ(roi_value[4], bbox.rotation());
+  std::vector<NormalizedRect> bboxes;
+  for (int i = 0; i < scene_num; ++i){
+    bboxes = output_packets[i].Get<std::vector<NormalizedRect>>();
+    ASSERT_EQ(gt_output_nums[i], bboxes.size());
+    if (gt_output_nums[i] == 0)
+      continue;
+    ASSERT_EQ(roi_values[i][0], bboxes[0].x_center());
+    ASSERT_EQ(roi_values[i][1], bboxes[0].y_center());
+    ASSERT_EQ(roi_values[i][2], bboxes[0].width());
+    ASSERT_EQ(roi_values[i][3], bboxes[0].height());
+    ASSERT_EQ(roi_values[i][4], bboxes[0].rotation());
   }
 }
 
-// One landmarksList, all the landmarks' value and ROIs' value are the same.
-TEST(LipTrackCalculatorTest, SameOneLandmarkList) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig));
-  int32 landmark_num = 1, roi_num = 1, gt_output_num = 0;
-  SetInputs(landmark_num, kLandmaksValueTrivial, roi_num, kRoiValueTrivial, runner.get());
+// One frame, one landmarksList (face), no speaker
+TEST(LipTrackCalculatorTest, OnefaceNoSpeaker) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1));
+  int32 scene_num = 1;
+  std::vector<int32> gt_output_nums{0};
+  SetInputs(kLandmaksValueOneClose, kTimeStampOne, kRoiValueOne, runner.get());
   MP_ASSERT_OK(runner->Run());
-  CheckOutputs(gt_output_num, kRoiValueTrivial, runner.get());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueOne, runner.get());
 }
 
+// One frame, one landmarksList (face), one speaker
+TEST(LipTrackCalculatorTest, OneFaceOneSpeaker) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1));
+  int32 scene_num = 1;
+  std::vector<int32> gt_output_nums{1};
+  SetInputs(kLandmaksValueOneOpen, kTimeStampOne, kRoiValueOne, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueOne, runner.get());
+}
+
+// Two frames, two landmarksLists (faces), no speaker (different faces)
+TEST(LipTrackCalculatorTest, TwoFacesDiffFace) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{0, 0};
+  SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoDiff, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoDiff, runner.get());
+}
+
+// Two frames, one landmarksList (face), no speaker (mouth is small)
+TEST(LipTrackCalculatorTest, TwoFacesSmallMouth) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{0, 0};
+  SetInputs(kLandmaksValueTwoDiff, kTimeStampTwo, kRoiValueTwoSame, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSame, runner.get());
+}
+
+// Two frames, one landmarksList (face), one speaker
+TEST(LipTrackCalculatorTest, TwofacesOneSpeaker) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{0, 1};
+  SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoSame, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSame, runner.get());
+}
+
+// Two frames, one landmarksLists (rotated face), one speaker
+TEST(LipTrackCalculatorTest, TwofacesRotatedFace) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{0, 1};
+  SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoSameRotate, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSameRotate, runner.get());
+}
 
 }  // namespace
 }  // namespace autoflip

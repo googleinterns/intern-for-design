@@ -147,21 +147,31 @@ LipTrackCalculator::LipTrackCalculator() {}
         cc->Inputs().Tag(kInputROI).Get<std::vector<NormalizedRect>>();
   
   GetStatistics(input_landmark_lists, &statistics);
-
+  for (auto& s : statistics)
+    LOG(ERROR) << "Statistics: " << s;
+  
   for (int i = 0; i < input_face_bbox.size(); ++i) {
     auto& bbox = input_face_bbox[i];
     cur_face_bbox.push_back(bbox);
     int32 cur_face_idx = cur_face_bbox.size() - 1;
 
+    // Check whether the face appeared before
     int previous_face_idx = MatchFace(bbox);
     cur_face_statistics.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
+    // If the face appeared, add the new data to the previous deque.
     if (previous_face_idx != -1) {
-      for (auto& value : face_statistics_[previous_face_idx])
+      LOG(ERROR) << "Matched!";
+      // Add previous statistics.
+      for (auto& value : face_statistics_[previous_face_idx]) 
         cur_face_statistics[cur_face_idx].push_back(value);
-      while (cur_face_statistics[cur_face_idx].size() > options_.frame_history() - 1)
+      // Add new statistics.
+      cur_face_statistics[cur_face_idx].push_back(statistics[i]);
+      while (cur_face_statistics[cur_face_idx].size() > options_.frame_history())
         cur_face_statistics[cur_face_idx].pop_front();
     }
+    // If the face did not appear, add the new data.
     else {
+      LOG(ERROR) << "Not atched!";
       cur_face_statistics[cur_face_idx].push_back(statistics[i]);
     }
     if (IsActiveSpeaker(cur_face_statistics[cur_face_idx]))
@@ -178,24 +188,26 @@ LipTrackCalculator::LipTrackCalculator() {}
 } 
 
 float LipTrackCalculator:: GetDistance(const NormalizedLandmark& mark_1,
-                                      const NormalizedLandmark& mark_2) {
+                                      const NormalizedLandmark& mark_2) {                              
   return std::sqrt(std::pow((mark_1.x()-mark_2.x())*frame_width_, 2) 
   + std::pow((mark_1.y()-mark_2.y())*frame_height_, 2));
 }
 
 void LipTrackCalculator:: GetStatistics(const std::vector<NormalizedLandmarkList>& landmark_lists, 
                     std::vector<float>* lip_statistics) {
-  float mouth_width;
-  float mouth_height = 0.0f;
+  float mouth_width = 0.0f, mouth_height = 0.0f;
   for (const auto& landmark_list : landmark_lists) {
-    if (landmark_list.landmark_size() < kFaceMeshLandmarks)
+    if (landmark_list.landmark_size() < kFaceMeshLandmarks){
+      LOG(ERROR) << "Unexpected number of landmarks.";
       continue;
+    }
     mouth_width = GetDistance(landmark_list.landmark(kLipLeftInnerCornerIdx),
                               landmark_list.landmark(kLipRightInnerCornerIdx));
     for (auto i = 0; i < kLipUpperIdx.size(); ++i) {
       mouth_height += GetDistance(landmark_list.landmark(kLipUpperIdx[i]),
                               landmark_list.landmark(kLipLowerIdx[i]));
     }
+    // Average the height is better since it may need more points in the future.
     mouth_height /= (float)kLipUpperIdx.size();
     lip_statistics->push_back(mouth_height / mouth_width);
   }
@@ -207,6 +219,7 @@ int LipTrackCalculator:: MatchFace(const NormalizedRect& face_bbox) {
   for (auto i = 0; i < face_bbox_.size(); ++i) {
     auto& bbox = face_bbox_[i];
     iou = GetIOU(bbox, face_bbox);
+    LOG(ERROR) << "IOU: " << iou;
     if (iou < options_.iou_threshold())
       continue;
     if (iou > maxi_iou) {
@@ -221,8 +234,8 @@ float LipTrackCalculator:: GetIOU(const NormalizedRect& bbox_1, const Normalized
   cv::RotatedRect cv_bbox_1, cv_bbox_2;
   cv_bbox_1.center = cv::Point2f(bbox_1.x_center(), bbox_1.y_center());
   cv_bbox_1.size = cv::Size2f(bbox_1.width(), bbox_1.height());
-  // TODO doubel check the rotation. Angle of cv::RotatedRect is degree
-  // while angle of NormalizedRect is NormalizedRect. Both clockwise.
+  // Angle of cv::RotatedRect is degree while angle of
+  // NormalizedRect is NormalizedRect. Both clockwise.
   cv_bbox_1.angle = 180.0f * bbox_1.rotation() / (float)M_PI;
   cv_bbox_2.center = cv::Point2f(bbox_2.x_center(), bbox_2.y_center());
   cv_bbox_2.size = cv::Size2f(bbox_2.width(), bbox_2.height());
@@ -231,27 +244,36 @@ float LipTrackCalculator:: GetIOU(const NormalizedRect& bbox_1, const Normalized
   // Get the vertices of intersecting region. 
   std::vector<cv::Point2f> intersecting_region;
   cv::rotatedRectangleIntersection(cv_bbox_1, cv_bbox_2, intersecting_region);
-  
-  return cv::contourArea(intersecting_region);
+  float area_intersection = cv::contourArea(intersecting_region);
+  float area_1 = bbox_1.width() * bbox_1.height();
+  float area_2 = bbox_2.width() * bbox_2.height();
+
+  return area_intersection / (area_1 + area_2 - area_intersection);
 }
 
 bool LipTrackCalculator:: IsActiveSpeaker(const std::deque<float>& face_lip_statistics) {
   // If a face only appears in a few frames, it's not an active speaker. 
-  if (face_lip_statistics.size() < options_.frame_history() / 2)
+  if (face_lip_statistics.size() <= options_.frame_history() / 2)
     return false;
   float mean = 0.0f, variance = 0.0f;
-  for (auto& value : face_lip_statistics) 
+  for (auto& value : face_lip_statistics) {
+    LOG(ERROR) << "Lip: " << value;
     mean += value;
+  }
   mean /= (float)face_lip_statistics.size();
   
   for (auto& value : face_lip_statistics) 
     variance += std::pow(value - mean, 2);
   variance /= (float)face_lip_statistics.size();
 
+  LOG(ERROR) << "Mean: " << mean << ". Variance: " << variance;
+  LOG(ERROR) << "Mean threshold: " << options_.lip_mean_threshold();
+  LOG(ERROR) << "Variance threshold: " << options_.lip_variance_threshold();
+
   // TODO determine the lip_mean_threshold and 
   // lip_variance_threshold with experiments.
-  if (mean > options_.lip_mean_threshold() 
-    && variance > options_.lip_variance_threshold())
+  if (mean >= options_.lip_mean_threshold() 
+    && variance >= options_.lip_variance_threshold())
     return true;
   return false;
 }
