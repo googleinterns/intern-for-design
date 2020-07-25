@@ -54,7 +54,7 @@ const std::vector<std::string> kTextLabelsOne{"AutoFlip"};
 const std::vector<cv::Point2f> kTopLeftCornersTwo{cv::Point2f(0.4, 0.7), cv::Point2f(0.8, 0.1)};
 const std::vector<std::string> kTextLabelsTwo{"textdetection", "TEXTDETECTION"};
 
-const std::string kModelPath = "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb";
+const std::string kModelPath = "/mediapipe/models/frozen_east_text_detection.pb";
 
 constexpr char kConfig[] = R"(
     calculator: "TextDetectionCalculator"
