@@ -1,0 +1,41 @@
+// Copyright 2019 The MediaPipe Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package mediapipe.autoflip;
+
+import "mediapipe/framework/calculator.proto";
+
+message LipTrackCalculatorOptions {
+  extend mediapipe.CalculatorOptions {
+    optional LipTrackCalculatorOptions ext = 284226724;
+  }
+
+  // Number of previous frames stored which are used to calculate
+  // the lip statistics.
+  optional int32 frame_history = 1 [default = 10];
+
+  // If IOU of two face bounding boxes are greater than iou_threshold,
+  // these two faces might be considered as the same face. Otherwise,
+  // these two faces are not considered as the same face.
+  optional float iou_threshold = 2 [default = 0.5];
+
+  // Lip statistics. If lip_mean >= lip_mean_threshold and 
+  // lip_variance >= lip_variance_threshold, the corresponding face
+  // are considered as active speaker.
+  optional float lip_mean_threshold = 3 [default = 0.3];
+  optional float lip_variance_threshold = 4 [default = 0.3];
+
+}
