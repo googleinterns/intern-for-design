@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <memory>
 #include <cmath>
-#include <iostream>
 
 #include "mediapipe/examples/desktop/autoflip/autoflip_messages.pb.h"
 #include "mediapipe/examples/desktop/autoflip/calculators/lip_track_calculator.pb.h"
@@ -177,15 +176,9 @@ LipTrackCalculator::LipTrackCalculator() {}
         cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
   const auto& input_face_bbox =
         cc->Inputs().Tag(kInputROI).Get<std::vector<NormalizedRect>>();
-  
-  // for (auto& landmark : input_landmark_lists){
-  //   std::cout << landmark.landmark(78).x() << " " << landmark.landmark(78).y() << " " << landmark.landmark(78).z() << std::endl;
-  // }
+
   
   GetStatistics(input_landmark_lists, &statistics);
-  for (auto& s : statistics)
-    // LOG(ERROR) << "Statistics: " << s;
-  
   for (int cur_face_idx = 0; cur_face_idx < input_face_bbox.size(); ++cur_face_idx) {
     auto& bbox = input_face_bbox[cur_face_idx];
     // Check whether the face appeared before
@@ -307,8 +300,6 @@ bool LipTrackCalculator::IsActiveSpeaker(const std::deque<float>& face_lip_stati
     variance += std::pow(value - mean, 2);
   variance /= (float)face_lip_statistics.size();
 
-  // TODO determine the lip_mean_threshold and 
-  // lip_variance_threshold with experiments.
   if (mean >= options_.lip_mean_threshold() 
     && variance >= options_.lip_variance_threshold())
     return true;
@@ -352,8 +343,6 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
     for (auto& idx : kLipContourIdx)
       vertices.push_back(LandmarkToPoint(idx, landmark_list));
     for (int j = 0; j < 8; ++j) {
-      // // Draw lip contour
-      // cv::line(*viz_mat, vertices[i], vertices[(i+1)%4], contour_color, 2);
       // Draw lip landmarks
       cv::circle(*viz_mat, vertices[j], 3, landmark_color, CV_FILLED);
     }
