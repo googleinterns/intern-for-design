@@ -59,7 +59,7 @@ const std::vector<std::vector<float>> kLandmaksValueTwoDiff{{0.1,0.5,0, 0.5,0.5,
 // ROI values
 const std::vector<std::vector<float>> kRoiValueOne{{0.5, 0.4, 0.2, 0.6, 0.0}};
 const std::vector<std::vector<float>> kRoiValueTwoSame{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.6, 0.4, 0.2, 0.6, 0.0}};
-const std::vector<std::vector<float>> kRoiValueTwoSameRotate{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.5, 0.4, 0.2, 0.6, M_PI/3.0}};
+const std::vector<std::vector<float>> kRoiValueTwoSameRotate{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.5, 0.4, 0.2, 0.6, 1/6.0}};
 const std::vector<std::vector<float>> kRoiValueTwoDiff{{0.5, 0.4, 0.2, 0.6, 0.0}, {0.7, 0.4, 0.2, 0.6, 0.0}};
 
 // Time stamp

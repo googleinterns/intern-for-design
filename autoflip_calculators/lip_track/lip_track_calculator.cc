@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <memory>
 #include <cmath>
+#include <iostream>
 
 #include "mediapipe/examples/desktop/autoflip/autoflip_messages.pb.h"
 #include "mediapipe/examples/desktop/autoflip/calculators/lip_track_calculator.pb.h"
@@ -55,8 +56,9 @@ const std::vector<int32> kLipContourIdx{78, 82, 13, 312, 308, 317, 14, 87};
 const int32 kFaceMeshLandmarks = 468;
 
 const cv::Scalar kRed = cv::Scalar(255.0, 0.0, 0.0); // active speaker bbox    
-const cv::Scalar kGreen = cv::Scalar(0.0, 255.0, 0.0); // input contour, bbox and infor
+const cv::Scalar kGreen = cv::Scalar(0.0, 255.0, 0.0); // input contour, bbox
 const cv::Scalar kBlue = cv::Scalar(0.0, 0.0, 255.0);  // landmarks
+const cv::Scalar kWhite = cv::Scalar(255.0, 255.0, 255.0);  // infor
 
 // This calculator tracks the lip motion and detects active speakers in the images.
 // Lip contour is obtained from face mesh. The output is speakers' face bound boxes. 
@@ -107,15 +109,15 @@ class LipTrackCalculator : public CalculatorBase {
   cv::Point2f LandmarkToPoint(const int idx, const NormalizedLandmarkList& landmark_list);
   // Draws and outputs visualization frames if those streams are present.
   ::mediapipe::Status OutputVizFrames(
-      const std::vector<NormalizedLandmarkList>& input_landmark_lists,
-      CalculatorContext* cc) const;
+                const std::vector<NormalizedLandmarkList>& input_landmark_lists,
+                const std::vector<NormalizedRect>& active_speaker_bbox, 
+                const cv::Mat& scene_frame, CalculatorContext* cc);
   ::mediapipe::Status DrawLandMarksAndInfor(
       const std::vector<NormalizedLandmarkList>& landmark_lists,
-      const std::map<int32, std::deque<float>>& face_statistics,
       const cv::Scalar& landmark_color, 
       const cv::Scalar& contour_color, cv::Mat* viz_mat);
   ::mediapipe::Status DrawBBox(const std::vector<NormalizedRect>& bboxes,
-                              const cv::Scalar& color, cv::Mat* viz_mat);  
+               const bool detected, const cv::Scalar& color, cv::Mat* viz_mat);  
    
   // Calculator options.
   LipTrackCalculatorOptions options_;
@@ -164,18 +166,21 @@ LipTrackCalculator::LipTrackCalculator() {}
   std::map<int32, std::deque<float>> cur_face_statistics;
   std::vector<float> statistics;
   
-  cv::Mat frame;
-  const auto& frame = cc->Inputs().Tag(kInputVideoFrames).Get<ImageFrame>();
-  frame = mediapipe::formats::MatView(
-      &cc->Inputs().Tag(kInputVideo).Get<ImageFrame>());
+  const auto& frame = cc->Inputs().Tag(kInputVideo).Get<ImageFrame>();
   frame_width_ = frame.Width();
   frame_height_ = frame.Height();
   frame_format_ = frame.Format();
+  cv::Mat mat_frame = mediapipe::formats::MatView(&frame);
+
 
   const auto& input_landmark_lists = 
         cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
   const auto& input_face_bbox =
         cc->Inputs().Tag(kInputROI).Get<std::vector<NormalizedRect>>();
+  
+  // for (auto& landmark : input_landmark_lists){
+  //   std::cout << landmark.landmark(78).x() << " " << landmark.landmark(78).y() << " " << landmark.landmark(78).z() << std::endl;
+  // }
   
   GetStatistics(input_landmark_lists, &statistics);
   for (auto& s : statistics)
@@ -208,12 +213,11 @@ LipTrackCalculator::LipTrackCalculator() {}
   face_bbox_ = input_face_bbox;
   face_statistics_ = cur_face_statistics;
 
-  cc->Outputs().Tag(kOutputROI).Add(output_bbox.release(), cc->InputTimestamp());
-
   // Optionally output the visualization frames of lit contour and related information.
   if (cc->Outputs().HasTag(kOutputContour)) 
-    MP_RETURN_IF_ERROR(OutputVizFrames(input_landmark_lists, cc));
+    MP_RETURN_IF_ERROR(OutputVizFrames(input_landmark_lists, *output_bbox.get(), mat_frame, cc));
 
+  cc->Outputs().Tag(kOutputROI).Add(output_bbox.release(), cc->InputTimestamp());
   return ::mediapipe::OkStatus();
 } 
 
@@ -264,7 +268,7 @@ cv::RotatedRect LipTrackCalculator::NormalizedRectToRotatedRect(const Normalized
   cv::RotatedRect cv_bbox;
   cv_bbox.center = cv::Point2f(bbox.x_center(), bbox.y_center());
   cv_bbox.size = cv::Size2f(bbox.width(), bbox.height());
-  cv_bbox.angle = 180.0f * bbox.rotation() / (float)M_PI;
+  cv_bbox.angle = 180.0f * bbox.rotation() * 2;
 
   return cv_bbox;
 }
@@ -275,12 +279,18 @@ float LipTrackCalculator::GetIOU(const NormalizedRect& bbox_1, const NormalizedR
   cv_bbox_2 = NormalizedRectToRotatedRect(bbox_2);
   // Get the vertices of intersecting region. 
   std::vector<cv::Point2f> intersecting_region;
-  cv::rotatedRectangleIntersection(cv_bbox_1, cv_bbox_2, intersecting_region);
-  float area_intersection = cv::contourArea(intersecting_region);
+  int intersection_type =
+    cv::rotatedRectangleIntersection(cv_bbox_1, cv_bbox_2, intersecting_region);
   float area_1 = bbox_1.width() * bbox_1.height();
   float area_2 = bbox_2.width() * bbox_2.height();
-
-  return area_intersection / (area_1 + area_2 - area_intersection);
+  if (intersection_type == cv::INTERSECT_NONE)
+    return 0.0f;
+  else if (intersection_type == cv::INTERSECT_PARTIAL){
+    float area_intersection = cv::contourArea(intersecting_region);
+    return area_intersection / (area_1 + area_2 - area_intersection);
+  }
+  else 
+    return std::min(area_1, area_2) / std::max(area_1, area_2);
 }
 
 bool LipTrackCalculator::IsActiveSpeaker(const std::deque<float>& face_lip_statistics) {
@@ -305,21 +315,21 @@ bool LipTrackCalculator::IsActiveSpeaker(const std::deque<float>& face_lip_stati
   return false;
 }
 
-mediapipe::Status LipTrackCalculator::OutputVizFrames(
+::mediapipe::Status LipTrackCalculator::OutputVizFrames(
     const std::vector<NormalizedLandmarkList>& input_landmark_lists,
     const std::vector<NormalizedRect>& active_speaker_bbox, 
-    cv::Mat scene_frame, CalculatorContext* cc) const {
+    const cv::Mat& scene_frame, CalculatorContext* cc) {
   auto viz_frame = absl::make_unique<ImageFrame>(
     frame_format_, frame_width_, frame_height_);
   cv::Mat viz_mat = formats::MatView(viz_frame.get());
   scene_frame.copyTo(viz_mat);
 
   MP_RETURN_IF_ERROR(DrawLandMarksAndInfor(input_landmark_lists, 
-              face_statistics_, kGreen, kBlue, &viz_mat));
+              kGreen, kBlue, &viz_mat));
   // Draw input face bbox
-  MP_RETURN_IF_ERROR(DrawBBox(face_bbox_, kGreen, &viz_mat));
+  MP_RETURN_IF_ERROR(DrawBBox(face_bbox_, false, kGreen, &viz_mat));
   // Draw active speaker face bbox
-  MP_RETURN_IF_ERROR(DrawBBox(active_speaker_bbox, kRed, &viz_mat));
+  MP_RETURN_IF_ERROR(DrawBBox(active_speaker_bbox, true, kRed, &viz_mat));
 
   cc->Outputs().Tag(kOutputContour).Add(viz_frame.release(), cc->InputTimestamp());
   return ::mediapipe::OkStatus();
@@ -327,51 +337,61 @@ mediapipe::Status LipTrackCalculator::OutputVizFrames(
 
 cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx, 
                 const NormalizedLandmarkList& landmark_list) {
-  return cv::Point2f(landmark_list.landmark(idx).x(), landmark_list.landmark(idx).kYFieldNumber());
+  return cv::Point2f(landmark_list.landmark(idx).x()*frame_width_, 
+                    landmark_list.landmark(idx).y()*frame_height_);
 }
 
 ::mediapipe::Status LipTrackCalculator::DrawLandMarksAndInfor(
       const std::vector<NormalizedLandmarkList>& landmark_lists,
-      const std::map<int32, std::deque<float>>& face_statistics,
       const cv::Scalar& landmark_color, 
       const cv::Scalar& contour_color, cv::Mat* viz_mat) {
   for (int i = 0; i < landmark_lists.size(); ++i) {
     auto& landmark_list = landmark_lists[i];
-    auto& stat = face_statistics[i];
+    std::deque<float> stat = face_statistics_[i];
     std::vector<cv::Point2f> vertices;
     for (auto& idx : kLipContourIdx)
       vertices.push_back(LandmarkToPoint(idx, landmark_list));
-    for (int i = 0; i < 8; ++i) {
-      // Draw lip contour
-      cv::line(viz_mat, vertices[i], vertices[(i+1)%4], contour_color, 2);
+    for (int j = 0; j < 8; ++j) {
+      // // Draw lip contour
+      // cv::line(*viz_mat, vertices[i], vertices[(i+1)%4], contour_color, 2);
       // Draw lip landmarks
-      cv::circle(viz_mat, vertices[i], 3, landmark_color, CV_FILLED);
+      cv::circle(*viz_mat, vertices[j], 3, landmark_color, CV_FILLED);
     }
     // Draw information
     float mean = 0.0f, variance = 0.0f;
-    for (auto& value : face_statistics) 
+    int base = 20, dy = 20;
+    for (auto& value : stat) 
       mean += value;
-    mean /= (float)face_statistics.size();
-    for (auto& value : face_statistics) 
+    mean /= (float)stat.size();
+    for (auto& value : stat) 
       variance += std::pow(value - mean, 2);
-    variance /= (float)face_statistics.size();
-    std::string label = std::format("Frame histroy: %d \n Mean: %.2f \n Variance: %.2f", 
-              face_statistics.size(), mean, variance);
-    cv::putText(viz_mat, label, vertices[0], FONT_HERSHEY_SIMPLEX, 1.0, landmark_color);
+    variance /= (float)stat.size();
+    std::string label = cv::format("Face_%d Histroy: %d  Mean: %.2f  Variance: %.2f", 
+              i, stat.size(), mean, variance);
+    cv::putText(*viz_mat, label, cv::Point2f(base,base+i*dy), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
   }
 
   return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status LipTrackCalculator::DrawBBox(
-    const std::vector<NormalizedRect>& bboxes,
+    const std::vector<NormalizedRect>& bboxes, const bool detected,
     const cv::Scalar& color, cv::Mat* viz_mat) {
-  for (auto& bbox : bboxes) {
+  for(int i = 0; i < bboxes.size(); ++i) {
+    auto& bbox = bboxes[i];
     cv::RotatedRect cv_bbox = NormalizedRectToRotatedRect(bbox);
+    cv_bbox.center.x *= frame_width_;
+    cv_bbox.center.y *= frame_height_;
+    cv_bbox.size.width *= frame_width_;
+    cv_bbox.size.height *= frame_height_;
     cv::Point2f vertices[4];
     cv_bbox.points(vertices);
-    for (int i = 0; i < 4; ++i)
-      cv::line(viz_mat, vertices[i], vertices[(i+1)%4], color, 2);
+    for (int j = 0; j < 4; ++j)
+      cv::line(*viz_mat, vertices[j], vertices[(j+1)%4], color, 2);
+    if (!detected){
+      std::string label = cv::format("Face_%d ", i);
+      cv::putText(*viz_mat, label, vertices[0], cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
+    }
   }
   return ::mediapipe::OkStatus();
 }
