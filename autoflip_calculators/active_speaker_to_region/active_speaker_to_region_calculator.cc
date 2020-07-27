@@ -67,9 +67,11 @@ class ActiveSpeakerToRegionCalculator : public CalculatorBase {
  private:
   // Calculator options.
   ActiveSpeakerToRegionCalculatorOptions options_;
-
   // A scorer used to assign weights to active speakers.
   std::unique_ptr<VisualScorer> scorer_;
+  // Dimensions of video frame
+  int frame_width_;
+  int frame_height_;
 }; // end with inheritance
 
 REGISTER_CALCULATOR(ActiveSpeakerToRegionCalculator);
@@ -95,6 +97,8 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
   }
 
   scorer_ = absl::make_unique<VisualScorer>(options_.scorer_options());
+  frame_width_ = 1;
+  frame_height_ = 1;
   return ::mediapipe::OkStatus();
 }
 
@@ -110,6 +114,8 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
   if (cc->Inputs().HasTag(kInputVideo)) {
     frame = mediapipe::formats::MatView(
         &cc->Inputs().Tag(kInputVideo).Get<ImageFrame>());
+    frame_width_ = frame.cols;
+    frame_height_ = frame.rows;
   }
 
   auto region_set = ::absl::make_unique<DetectionSet>();
@@ -120,10 +126,14 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
     for (const auto& input_roi : input_rois) {
       // Convert the normalized rect to its bounding rect
       cv::RotatedRect cv_bbox;
-      cv_bbox.center = cv::Point2f(input_roi.x_center(), input_roi.y_center());
-      cv_bbox.size = cv::Size2f(input_roi.width(), input_roi.height());
-      cv_bbox.angle = 180.0f * input_roi.rotation() / (float)M_PI;
+      cv_bbox.center = cv::Point2f(input_roi.x_center()*frame_width_, input_roi.y_center()*frame_height_);
+      cv_bbox.size = cv::Size2f(input_roi.width()*frame_width_, input_roi.height()*frame_height_);
+      cv_bbox.angle = 180.0f * input_roi.rotation() * 2;
       cv::Rect2f box = cv_bbox.boundingRect2f();
+      box.x /= frame_width_;
+      box.y /= frame_height_;
+      box.width /= frame_width_;
+      box.height /= frame_height_;
 
       float x = std::max(0.0f, box.x);
       float y = std::max(0.0f, box.y);
@@ -131,7 +141,7 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
           std::min(box.width - x + box.x, 1 - x);
       float height = 
           std::min(box.height - y + box.y, 1 - y);
-          
+
       // Convert the text bounding box to a region.
       SalientRegion* region = region_set->add_detections();
       region->mutable_location_normalized()->set_x(x);
