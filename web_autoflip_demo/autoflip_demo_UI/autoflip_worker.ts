@@ -284,28 +284,27 @@ async function read(videoId: number, start: number): Promise<Frame[]> {
 
 /** Transfers the crop windows rectangles from stream. */
 function convertSeralizedRectToObj(protoArray: number[]): Rect | undefined {
-  let _a, _b, _c, _d;
   if (protoArray.length !== 4) {
     return undefined;
   }
   return {
-    x: (_a = protoArray[0]) !== null && _a !== void 0 ? _a : 0,
-    y: (_b = protoArray[1]) !== null && _b !== void 0 ? _b : 0,
-    width: (_c = protoArray[2]) !== null && _c !== void 0 ? _c : 0,
-    height: (_d = protoArray[3]) !== null && _d !== void 0 ? _d : 0,
+    x: protoArray[0] ?? 0,
+    y: protoArray[1] ?? 0,
+    width: protoArray[2] ?? 0,
+    height: protoArray[3] ?? 0,
   };
 }
 
+
 /** Transfers the background color rectangles from stream. */
 function convertSeralizedColorToObj(protoArray: number[]): Color | undefined {
-  let _a, _b, _c;
   if (protoArray.length !== 3) {
     return undefined;
   }
   return {
-    r: (_a = protoArray[0]) !== null && _a !== void 0 ? _a : 0,
-    g: (_b = protoArray[1]) !== null && _b !== void 0 ? _b : 0,
-    b: (_c = protoArray[2]) !== null && _c !== void 0 ? _c : 0,
+    r: protoArray[0] ?? 0,
+    g: protoArray[1] ?? 0,
+    b: protoArray[2] ?? 0,
   };
 }
 
@@ -313,7 +312,6 @@ function convertSeralizedColorToObj(protoArray: number[]): Color | undefined {
 function convertSeralizedExternalRenderingInfoToObj(
   protoString: string,
 ): ExternalRenderingInformation {
-  let _a, _b, _c, _d, _e, _f;
   const protoArray: any[] = JSON.parse(protoString);
   const renderInformation: Partial<ExternalRenderingInformation> = {};
   if (protoArray[0] ?? false) {
