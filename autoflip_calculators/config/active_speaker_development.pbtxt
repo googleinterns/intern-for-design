@@ -43,7 +43,8 @@ node {
 node {
   calculator: "AutoFlipActiveSpeakerDetectionSubgraph"
   input_stream: "VIDEO:video_frames_scaled"
-  output_stream: "ROIS:active_speaker_rects"
+  output_stream: "DETECTIONS_SPEAKERS:active_speaker_detections"
+  output_stream: "DETECTIONS:face_detections"
   output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
 }
 
