@@ -2,8 +2,8 @@
 # on CPU.
 
 input_stream: "VIDEO:input_video"
-output_stream: "ROIS:active_speakers_rects"
-# output_stream: "DETECTIONS:face_detections"
+output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
+output_stream: "DETECTIONS:face_detections"
 output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
 
 # max_queue_size limits the number of packets enqueued on any input stream
@@ -18,7 +18,7 @@ node {
   output_side_packet: "PACKET:num_faces"
   node_options: {
     [type.googleapis.com/mediapipe.ConstantSidePacketCalculatorOptions]: {
-      packet { int_value: 2 }
+      packet { int_value: 3 }
     }
   }
 }
@@ -39,15 +39,7 @@ node {
   calculator: "LipTrackCalculator"
   input_stream: "VIDEO:input_video"
   input_stream: "LANDMARKS:multi_face_landmarks"
-  input_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
-  output_stream: "ROIS:active_speakers_rects"
+  input_stream: "DETECTIONS:face_detections"
+  output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
   output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
-  options:{
-    [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
-      frame_history: 2
-      iou_threshold: 0.5
-      lip_mean_threshold: 0.18
-      lip_variance_threshold: 0.0
-    }
-  }
 }
