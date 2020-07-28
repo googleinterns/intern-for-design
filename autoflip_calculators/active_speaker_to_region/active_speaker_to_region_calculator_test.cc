@@ -37,28 +37,27 @@ namespace autoflip {
 namespace {
 
 constexpr char kInputVideo[] = "VIDEO";
-constexpr char kInputRois[] = "ROIS";
+constexpr char kInputRois[] = "DETECTIONS_SPEAKERS";
 constexpr char kOutputRegion[] = "REGIONS";
 const int kImagewidth = 800;
 const int kImageheight = 600;
 
 // ROI values
-const std::vector<std::vector<float>> kRoiValueOne{{0.5, 0.4, 0.2, 0.6, 0.0}};
-const std::vector<std::vector<float>> kRoiValueOneOutside{{0.1, 0.2, 0.3, 0.6, 0.0}};
-const std::vector<std::vector<float>> kRoiValueOneEdge{{0.1, 0.2, 0.2, 0.4, 0.0}};
-const std::vector<std::vector<float>> kRoiValueTwo{{0.25, 0.95, 0.5, 0.1, 0.0}, {0.8, 0.9, 0.5, 0.4, 0.0}};
-const std::vector<std::vector<float>> kRoiValueTwoRotate{{0.9, 0.9, 0.2, 0.4, 1/4.0}, {0.1, 0.2, 0.6, 0.4, -1/4.0}};
+const std::vector<std::vector<float>> kRoiValueOne{{0.4, 0.1, 0.2, 0.6}};
+const std::vector<std::vector<float>> kRoiValueOneOutside{{-0.05, -0.1, 0.3, 0.6}};
+const std::vector<std::vector<float>> kRoiValueOneEdge{{0.0, 0.0, 0.2, 0.4}};
+const std::vector<std::vector<float>> kRoiValueTwo{{0.0, 0.9, 0.5, 0.1}, {0.55, 0.7, 0.5, 0.4}};
 
 const char kConfig[] = R"(
     calculator: "ActiveSpeakerToRegionCalculator"
     input_stream: "VIDEO:frames"
-    input_stream: "ROIS:normalized_speakers"
+    input_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
     output_stream: "REGIONS:regions"
     )";
 
 const char kConfigNoVideo[] = R"(
     calculator: "ActiveSpeakerToRegionCalculator"
-    input_stream: "ROIS:normalized_speakers"
+    input_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
     output_stream: "REGIONS:regions"
     )";
 
@@ -72,15 +71,17 @@ void SetInputs(const std::vector<std::vector<float>>& rois, const bool include_v
         Adopt(input_frame.release()).At(Timestamp::PostStream()));
   }
   // Setup two faces as input.
-  auto input_rois = ::absl::make_unique<std::vector<NormalizedRect>>();
+  auto input_rois = ::absl::make_unique<std::vector<Detection>>();
   // A face with landmarks.
   for (const auto& roi : rois) {
-    NormalizedRect rect;
-    rect.set_x_center(roi[0]);
-    rect.set_y_center(roi[1]);
-    rect.set_width(roi[2]);
-    rect.set_height(roi[3]);
-    rect.set_rotation(roi[4]);
+    Detection rect;
+    LocationData* location_data = rect.mutable_location_data();
+    location_data->set_format(LocationData::RELATIVE_BOUNDING_BOX);
+    LocationData::RelativeBoundingBox* bbox = location_data->mutable_relative_bounding_box();
+    bbox->set_xmin(roi[0]);
+    bbox->set_ymin(roi[1]);
+    bbox->set_width(roi[2]);
+    bbox->set_height(roi[3]);
     input_rois->push_back(rect);
   }
   runner->MutableInputs()->Tag(kInputRois).packets.push_back(
@@ -116,7 +117,7 @@ TEST(ActiveSpeakerToRegionCalculatorTest, NoVideoNoVisualScore) {
   auto& speaker = regions.detections(0);
   EXPECT_EQ(speaker.signal_type().standard(), SignalType::FACE_FULL);
   EXPECT_FLOAT_EQ(speaker.location_normalized().x(), 0.4);
-  EXPECT_FLOAT_EQ(speaker.location_normalized().y(), 0.099999964);
+  EXPECT_FLOAT_EQ(speaker.location_normalized().y(), 0.1);
   EXPECT_FLOAT_EQ(speaker.location_normalized().width(), 0.2);
   EXPECT_FLOAT_EQ(speaker.location_normalized().height(), 0.6);
   EXPECT_FLOAT_EQ(speaker.score(), 1.0);
@@ -262,37 +263,6 @@ TEST(ActiveSpeakerToRegionCalculatorTest, TwoSpeakers) {
   EXPECT_FLOAT_EQ(speaker_2.location_normalized().y(), 0.7);
   EXPECT_FLOAT_EQ(speaker_2.location_normalized().width(), 0.45);
   EXPECT_FLOAT_EQ(speaker_2.location_normalized().height(), 0.3);
-}
-
-// Two speakers with rotated
-TEST(ActiveSpeakerToRegionCalculatorTest, TwoSpeakersRotated) {
-  // Setup test
-  auto runner = ::absl::make_unique<CalculatorRunner>(
-      MakeConfig(kConfig, false));
-  SetInputs(kRoiValueTwoRotate, true, runner.get());
-  // Run the calculator.
-  MP_ASSERT_OK(runner->Run());
-
-  // Check the output regions.
-  const std::vector<Packet>& output_packets =
-      runner->Outputs().Tag(kOutputRegion).packets;
-  ASSERT_EQ(1, output_packets.size());
-
-  const auto& regions = output_packets[0].Get<DetectionSet>();
-  ASSERT_EQ(2, regions.detections().size());
-  auto& speaker_1 = regions.detections(0);
-  EXPECT_EQ(speaker_1.signal_type().standard(), SignalType::FACE_FULL);
-  EXPECT_FLOAT_EQ(speaker_1.location_normalized().x(), 0.75);
-  EXPECT_FLOAT_EQ(speaker_1.location_normalized().y(), 0.76666665);
-  EXPECT_FLOAT_EQ(speaker_1.location_normalized().width(), 0.25);
-  EXPECT_FLOAT_EQ(speaker_1.location_normalized().height(), 0.23333335);
-
-  auto& speaker_2 = regions.detections(1);
-  EXPECT_EQ(speaker_2.signal_type().standard(), SignalType::FACE_FULL);
-  EXPECT_FLOAT_EQ(speaker_2.location_normalized().x(), 0);
-  EXPECT_FLOAT_EQ(speaker_2.location_normalized().y(), 0);
-  EXPECT_FLOAT_EQ(speaker_2.location_normalized().width(), 0.25);
-  EXPECT_FLOAT_EQ(speaker_2.location_normalized().height(), 0.6);
 }
 
 }  // namespace

@@ -34,7 +34,7 @@ namespace mediapipe {
 namespace autoflip {
 
 constexpr char kInputVideo[] = "VIDEO";
-constexpr char kInputRois[] = "ROIS";
+constexpr char kInputRois[] = "DETECTIONS_SPEAKERS";
 constexpr char kOutputRegion[] = "REGIONS";
 
 
@@ -45,7 +45,7 @@ constexpr char kOutputRegion[] = "REGIONS";
 // Example:
 //    calculator: "ActiveSpeakerToRegionCalculator"
 //    input_stream: "VIDEO:frames"
-//    input_stream: "ROIS:normalized_speakers"
+//    input_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
 //    output_stream: "REGIONS:regions"
 //    options:{
 //      [mediapipe.autoflip.ActiveSpeakerToRegionCalculatorOptions.ext]:{
@@ -83,7 +83,7 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
   if (cc->Inputs().HasTag(kInputVideo)) {
     cc->Inputs().Tag(kInputVideo).Set<ImageFrame>();
   }
-  cc->Inputs().Tag(kInputRois).Set<std::vector<NormalizedRect>>();
+  cc->Inputs().Tag(kInputRois).Set<std::vector<Detection>>();
   cc->Outputs().Tag(kOutputRegion).Set<DetectionSet>();
   return ::mediapipe::OkStatus();
 }
@@ -97,8 +97,8 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
   }
 
   scorer_ = absl::make_unique<VisualScorer>(options_.scorer_options());
-  frame_width_ = 1;
-  frame_height_ = 1;
+  frame_width_ = -1;
+  frame_height_ = -1;
   return ::mediapipe::OkStatus();
 }
 
@@ -121,26 +121,20 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
   auto region_set = ::absl::make_unique<DetectionSet>();
   if (!cc->Inputs().Tag(kInputRois).Value().IsEmpty()) {
     const auto& input_rois =
-        cc->Inputs().Tag(kInputRois).Get<std::vector<NormalizedRect>>();
+        cc->Inputs().Tag(kInputRois).Get<std::vector<Detection>>();
 
     for (const auto& input_roi : input_rois) {
-      // Convert the normalized rect to its bounding rect
-      cv::RotatedRect cv_bbox;
-      cv_bbox.center = cv::Point2f(input_roi.x_center()*frame_width_, input_roi.y_center()*frame_height_);
-      cv_bbox.size = cv::Size2f(input_roi.width()*frame_width_, input_roi.height()*frame_height_);
-      cv_bbox.angle = 180.0f * input_roi.rotation() * 2;
-      cv::Rect2f box = cv_bbox.boundingRect2f();
-      box.x /= frame_width_;
-      box.y /= frame_height_;
-      box.width /= frame_width_;
-      box.height /= frame_height_;
+      RET_CHECK(input_roi.location_data().format() ==
+        mediapipe::LocationData::RELATIVE_BOUNDING_BOX)
+        << "Speaker detection input is lacking required relative_bounding_box()";
+      const auto& location = input_roi.location_data().relative_bounding_box();
 
-      float x = std::max(0.0f, box.x);
-      float y = std::max(0.0f, box.y);
+      float x = std::max(0.0f, location.xmin());
+      float y = std::max(0.0f, location.ymin());
       float width =
-          std::min(box.width - x + box.x, 1 - x);
+          std::min(location.width() - x + location.xmin(), 1 - x);
       float height = 
-          std::min(box.height - y + box.y, 1 - y);
+          std::min(location.height() - y + location.ymin(), 1 - y);
 
       // Convert the text bounding box to a region.
       SalientRegion* region = region_set->add_detections();
