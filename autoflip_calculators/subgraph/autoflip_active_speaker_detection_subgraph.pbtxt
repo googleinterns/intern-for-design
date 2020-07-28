@@ -1,0 +1,53 @@
+# MediaPipe graph that performs face mesh on desktop with TensorFlow Lite
+# on CPU.
+
+input_stream: "VIDEO:input_video"
+output_stream: "ROIS:active_speakers_rects"
+# output_stream: "DETECTIONS:face_detections"
+output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
+
+# max_queue_size limits the number of packets enqueued on any input stream
+# by throttling inputs to the graph. This makes the graph only process one
+# frame per time.
+max_queue_size: 1
+
+
+# Defines side packets for further use in the graph.
+node {
+  calculator: "ConstantSidePacketCalculator"
+  output_side_packet: "PACKET:num_faces"
+  node_options: {
+    [type.googleapis.com/mediapipe.ConstantSidePacketCalculatorOptions]: {
+      packet { int_value: 2 }
+    }
+  }
+}
+
+# Subgraph that detects faces and corresponding landmarks.
+node {
+  calculator: "FaceLandmarkFrontCpu"
+  input_stream: "IMAGE:input_video"
+  input_side_packet: "NUM_FACES:num_faces"
+  output_stream: "LANDMARKS:multi_face_landmarks"
+  output_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
+  output_stream: "DETECTIONS:face_detections"
+  output_stream: "ROIS_FROM_DETECTIONS:face_rects_from_detections"
+}
+
+# Detect the active speakers.
+node {
+  calculator: "LipTrackCalculator"
+  input_stream: "VIDEO:input_video"
+  input_stream: "LANDMARKS:multi_face_landmarks"
+  input_stream: "ROIS_FROM_LANDMARKS:face_rects_from_landmarks"
+  output_stream: "ROIS:active_speakers_rects"
+  output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
+  options:{
+    [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
+      frame_history: 2
+      iou_threshold: 0.5
+      lip_mean_threshold: 0.18
+      lip_variance_threshold: 0.0
+    }
+  }
+}
