@@ -24,18 +24,21 @@ message LipTrackCalculatorOptions {
   }
 
   // Number of previous frames stored which are used to calculate
-  // the lip statistics.
-  optional int32 frame_history = 1 [default = 10];
+  // the lip statistics. Note that variance_history should be no
+  // smaller than mean_history.
+  optional int32 mean_history = 1 [default = 2];
+  optional int32 variance_history = 2 [default = 6];
 
   // If IOU of two face bounding boxes are greater than iou_threshold,
   // these two faces might be considered as the same face. Otherwise,
   // these two faces are not considered as the same face.
-  optional float iou_threshold = 2 [default = 0.5];
+  optional float iou_threshold = 3 [default = 0.5];
 
-  // Lip statistics. If lip_mean >= lip_mean_threshold and 
-  // lip_variance >= lip_variance_threshold, the corresponding face
-  // are considered as active speaker.
-  optional float lip_mean_threshold = 3 [default = 0.3];
-  optional float lip_variance_threshold = 4 [default = 0.3];
+  // Lip statistics thresholds which are used to detect
+  // the active speaker.
+  optional float lip_mean_threshold_big_mouth = 4 [default = 0.18];
+  optional float lip_variance_threshold_big_mouth = 5 [default = 0.001];
+  optional float lip_mean_threshold_small_mouth = 6 [default = 0.09];
+  optional float lip_variance_threshold_small_mouth = 7 [default = 0.0013];
 
 }
