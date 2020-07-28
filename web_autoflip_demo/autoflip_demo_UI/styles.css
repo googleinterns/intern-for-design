@@ -1,0 +1,98 @@
+body {
+  color: #353b47;
+  font-family: sans-serif;
+}
+.card {
+  /* Add shadows to create the "card" effect */
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  transition: 0.3s;
+  padding: 30px 0px;
+  margin: 20px 50px;
+}
+
+/* On mouse-over, add a deeper shadow */
+.card:hover {
+  box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.4);
+}
+
+.zone {
+  margin: auto;
+  width: 60%;
+  height: 60%;
+  border: 5px dashed #687793;
+  border-radius: 25px;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.zone i {
+  text-align: center;
+  font-size: 100px;
+  color: #687793;
+  margin-top: 50px;
+}
+.zone .selectFile {
+  height: 50px;
+  margin: 20px auto;
+  position: relative;
+  width: 200px;
+}
+.zone label,
+.zone input {
+  cursor: pointer;
+  display: block;
+  height: 50px;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid #687793;
+}
+.zone label {
+  background: #fff;
+  display: inline-block;
+  font-size: 20px;
+  line-height: 50px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 400;
+  box-shadow: 0 1px 1px gray;
+}
+.zone input[type='file'] {
+  opacity: 0;
+}
+
+.custom-video-area {
+  margin-top: 50px;
+}
+
+#myProgress {
+  width: 70%;
+  background-color: #ddd;
+  margin: auto;
+}
+
+#myBar-ffmpeg {
+  width: 0%;
+  height: 30px;
+  background-color: #4caf50;
+}
+
+#myBar-autoflip {
+  width: 0%;
+  height: 30px;
+  background-color: #4caf50;
+}
+
+#start-demo,
+.crop-button {
+  padding: 15px 32px;
+  text-align: center;
+  display: inline-block;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #687793;
+  background: white;
+  margin-bottom: 1rem;
+  margin-left: 10px;
+}

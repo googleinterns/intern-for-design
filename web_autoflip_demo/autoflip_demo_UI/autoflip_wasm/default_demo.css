@@ -1,0 +1,109 @@
+.abs {
+  position: absolute;
+}
+
+body {
+  font-family: 'Titillium Web', sans-serif;
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform-origin: 0px 0px;
+  margin: 0;
+}
+
+.fill {
+  width: 100%;
+}
+
+.hover-red {
+  border: 2px solid red;
+}
+
+#notch {
+  left: 0;
+}
+
+.message {
+  left: 0;
+  top: 0;
+  width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 36px;
+  line-height: 46px;
+  position: absolute;
+}
+
+.message-bgfill {
+  background-color: rgba(0,0,0,0.8);
+}
+
+.logo {
+  bottom: 24px;
+  right: 0;
+  margin: 10px;
+  height: 20px;
+}
+
+#output {
+  width: 100%;
+}
+
+#frame_notch {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+#frame_interface {
+  position: absolute;
+  width: 960px;
+  background-color: #5f778c;
+}
+
+#frame_instructions {
+  visibility: hidden;
+  color: rgba(255,255,255,0.8);
+  font-size: 36px;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  align-items: center;
+  justify-content: center;
+  top: 0;
+  bottom: 0;
+  left: 12%;
+  right: 12%;
+  pointer-events: none;
+  text-align: center;
+}
+
+#frame_instructions p {
+  text-align: center;
+}
+
+.idle #frame_instructions {
+  visibility: visible;
+}
+.idle #single_output {
+  visibility: hidden;
+}
+
+#process_image_button {
+  left: 0;
+}
+
+.credit {
+  clip-path: polygon(5% 0%, 100% 0%, 100% 100%, 0% 100%);
+  color: rgba(237, 225, 187, 0.9);
+  right: 0;
+  bottom: 30px;
+  font-family: sans-serif;
+  padding: 5px 50px 5px 50px;
+  background-color: rgba(255,255,255,0.4);
+}

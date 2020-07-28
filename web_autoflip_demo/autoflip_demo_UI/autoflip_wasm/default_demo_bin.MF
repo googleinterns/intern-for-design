@@ -1,0 +1,4 @@
+javascript/closure/base.js
+third_party/javascript/tslib/tslib_closure.js
+third_party/mediapipe/web/default_demo_api.shim.js
+third_party/mediapipe/web/default_demo.closure.js
