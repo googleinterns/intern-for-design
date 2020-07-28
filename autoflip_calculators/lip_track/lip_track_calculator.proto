@@ -40,5 +40,4 @@ message LipTrackCalculatorOptions {
   optional float lip_variance_threshold_big_mouth = 5 [default = 0.001];
   optional float lip_mean_threshold_small_mouth = 6 [default = 0.09];
   optional float lip_variance_threshold_small_mouth = 7 [default = 0.0013];
-
 }

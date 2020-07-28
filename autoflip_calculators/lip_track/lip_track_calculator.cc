@@ -38,7 +38,7 @@ namespace autoflip {
 constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputDetection[] = "DETECTIONS";
-constexpr char kOutputROI[] = "DETECTIONS";
+constexpr char kOutputROI[] = "DETECTIONS_SPEAKERS";
 
 // (Optional) Output the frame with face mesh landmarks, as well
 // as visualization of lip contour and related information.
@@ -66,7 +66,7 @@ const cv::Scalar kWhite = cv::Scalar(255.0, 255.0, 255.0);  // infor
 //    input_stream: "VIDEO:input_video"
 //    input_stream: "LANDMARKS:multi_face_landmarks"
 //    input_stream: "DETECTIONS:face_detections"
-//    output_stream: "DETECTIONS:active_speakers_detections"
+//    output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
 //    output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
 //    options:{
 //      [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {

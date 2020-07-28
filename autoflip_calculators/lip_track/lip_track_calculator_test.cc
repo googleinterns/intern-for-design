@@ -40,7 +40,7 @@ namespace {
 constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputROI[] = "DETECTIONS";
-constexpr char kOutputROI[] = "DETECTIONS";
+constexpr char kOutputROI[] = "DETECTIONS_SPEAKERS";
 
 const int32 kImagewidth = 800; 
 const int32 kImageheight = 600;
@@ -72,7 +72,7 @@ constexpr char kConfig[] = R"(
     input_stream: "VIDEO:input_video"
     input_stream: "LANDMARKS:multi_face_landmarks"
     input_stream: "DETECTIONS:face_detections"
-    output_stream: "DETECTIONS:active_speakers_detections"
+    output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
     options: {
       [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
         iou_threshold: 0.2
