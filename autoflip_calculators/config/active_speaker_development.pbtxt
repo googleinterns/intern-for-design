@@ -1,0 +1,73 @@
+# Autoflip graph that renders the active speaker detection.
+# For use by developers who may be adding signals and adjusting weights.
+max_queue_size: -1
+
+# VIDEO_PREP: Decodes an input video file into images and a video header.
+node {
+  calculator: "OpenCvVideoDecoderCalculator"
+  input_side_packet: "INPUT_FILE_PATH:input_video_path"
+  output_stream: "VIDEO:video_raw"
+  output_stream: "VIDEO_PRESTREAM:video_header"
+}
+
+# VIDEO_PREP: Scale the input video before feature extraction.
+node {
+  calculator: "ScaleImageCalculator"
+  input_stream: "FRAMES:video_raw"
+  input_stream: "VIDEO_HEADER:video_header"
+  output_stream: "FRAMES:video_frames_scaled"
+  options: {
+    [mediapipe.ScaleImageCalculatorOptions.ext]: {
+      preserve_aspect_ratio: true
+      output_format: SRGB
+      target_width: 960
+      algorithm: DEFAULT_WITHOUT_UPSCALE
+    }
+  }
+}
+
+# VIDEO_PREP: Create a low frame rate stream for feature extraction.
+node {
+  calculator: "PacketThinnerCalculator"
+  input_stream: "video_frames_scaled"
+  output_stream: "video_frames_scaled_downsampled"
+  options: {
+    [mediapipe.PacketThinnerCalculatorOptions.ext]: {
+      thinner_type: ASYNC
+      period: 200000
+    }
+  }
+}
+
+# DETECTION: find active speaker on the down sampled stream
+node {
+  calculator: "AutoFlipActiveSpeakerDetectionSubgraph"
+  input_stream: "VIDEO:video_frames_scaled"
+  output_stream: "DETECTIONS_SPEAKERS:active_speaker_detections"
+  output_stream: "DETECTIONS:face_detections"
+  output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
+}
+
+# ENCODING(optional): encode the video stream for the salient_point_viz_frames
+# output. Draws the focus points and the scene crop window (red).
+node {
+  calculator: "VideoPreStreamCalculator"
+  # Fetch frame format and dimension from input frames.
+  input_stream: "FRAME:contour_information_frames"
+  # Copying frame rate and duration from original video.
+  input_stream: "VIDEO_PRESTREAM:video_header"
+  output_stream: "contour_information_frames_header"
+}
+
+node {
+  calculator: "OpenCvVideoEncoderCalculator"
+  input_stream: "VIDEO:contour_information_frames"
+  input_stream: "VIDEO_PRESTREAM:contour_information_frames_header"
+  input_side_packet: "OUTPUT_FILE_PATH:contour_information_frames_path"
+  options: {
+    [mediapipe.OpenCvVideoEncoderCalculatorOptions.ext]: {
+      codec: "avc1"
+      video_format: "mp4"
+    }
+  }
+}
