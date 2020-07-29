@@ -173,27 +173,29 @@ onmessage = function (e: MessageEvent): void {
     workerWindow = signal.window;
   }
   // Gets frameData from indexDB and process with Autoflip.
-  read(signal.videoId, signal.startTime).then((value): void => {
-    console.log(`PROMISE: promise ${signal.videoId} returned`);
-    let frameData: Frame[] = value;
-    handleFrames(frameData, signal);
-    if (signal.end === true) {
-      const b = autoflipModule.closeGraphInternal();
-      // This posts the analysis result back to main script.
-      ctx.postMessage({
-        type: 'finishedAnalysis',
-        cropWindows: resultCropInfo,
-        startId: currentId,
-        videoId: signal.videoId,
-        shots: resultShots,
-      });
-    } else {
-      ctx.postMessage({
-        type: 'nextCrop',
-        videoId: signal.videoId + 1,
-      });
-    }
-  });
+  readFramesFromIndexedDB(signal.videoId, signal.startTime).then(
+    (value: Frame[]): void => {
+      console.log(`PROMISE: promise ${signal.videoId} returned`);
+      let frameData: Frame[] = value;
+      handleFrames(frameData, signal);
+      if (signal.end === true) {
+        const b = autoflipModule.closeGraphInternal();
+        // This posts the analysis result back to main script.
+        ctx.postMessage({
+          type: 'finishedAnalysis',
+          cropWindows: resultCropInfo,
+          startId: currentId,
+          videoId: signal.videoId,
+          shots: resultShots,
+        });
+      } else {
+        ctx.postMessage({
+          type: 'nextCrop',
+          videoId: signal.videoId + 1,
+        });
+      }
+    },
+  );
 };
 
 /** Processes input frames with autoflip wasm. */
@@ -245,8 +247,11 @@ function handleFrames(frameData: Frame[], signal: Signal): void {
   }
 }
 
-/** Reads frame decode datarows from the indexDB. */
-async function read(videoId: number, start: number): Promise<Frame[]> {
+/** Reads frame decode data rows from the indexDB. */
+async function readFramesFromIndexedDB(
+  videoId: number,
+  start: number,
+): Promise<Frame[]> {
   const key = start * 15;
   const transaction: IDBTransaction = dbAutoflip.transaction(['decodedFrames']);
   const objectStore: IDBObjectStore = transaction.objectStore('decodedFrames');
@@ -294,7 +299,6 @@ function convertSeralizedRectToObj(protoArray: number[]): Rect | undefined {
     height: protoArray[3] ?? 0,
   };
 }
-
 
 /** Transfers the background color rectangles from stream. */
 function convertSeralizedColorToObj(protoArray: number[]): Color | undefined {

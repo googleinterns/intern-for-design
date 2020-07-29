@@ -111,12 +111,12 @@ onmessage = function (e: MessageEvent): void {
         for (let i = 0; i < frames.length; i++) {
           frames[i]['frameId'] = i + frameIdStart;
         }
-        addSectionFrames(frames, e.data.videoId, e.data.workerId);
+        addSectionFramestoIndexDB(frames, e.data.videoId, e.data.workerId);
       });
   }
 
   /** Adds section frames to indexDB "frames" store. */
-  function addSectionFrames(
+  function addSectionFramestoIndexDB(
     framesData: Frame[],
     videoId: number,
     workerId: number,
@@ -148,8 +148,7 @@ onmessage = function (e: MessageEvent): void {
     // Stores each decode frame data tp indexDB.
     for (let i = 0; i < framesData.length; i++) {
       let request: IDBRequest<IDBValidKey> = decodedFrames.add(framesData[i]);
-      request.onsuccess = function (): void {
-      };
+      request.onsuccess = function (): void {};
       request.onerror = function (): void {
         console.log(`Error frame ${framesData[i].frameId}`, request.error);
       };
