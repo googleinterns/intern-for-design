@@ -58,7 +58,9 @@ function handleOnChange(event: Event): void {
   console.log(`MAIN: video file has been chosen`, videoFile);
   // Previews the upload video
   const videoURL = URL.createObjectURL(videoFile);
-  const videoPerview = <HTMLVideoElement>document.querySelector('#video-preview');
+  const videoPerview = <HTMLVideoElement>(
+    document.querySelector('#video-preview')
+  );
   videoPerview.src = `${videoURL}#t=0, videoCropInfo.endTime`;
 
   // Creates element to load video data to fetch video duration, height, width
@@ -66,7 +68,11 @@ function handleOnChange(event: Event): void {
   videoLoad.preload = 'metadata';
   videoLoad.onloadedmetadata = function (): void {
     window.URL.revokeObjectURL(videoLoad.src);
-    videoInfo = { duration: videoLoad.duration, height: videoLoad.videoHeight, width: videoLoad.videoWidth };
+    videoInfo = {
+      duration: videoLoad.duration,
+      height: videoLoad.videoHeight,
+      width: videoLoad.videoWidth,
+    };
     console.log(`MAIN: get video infomation`, videoInfo);
     size = Math.floor(videoLoad.duration / processWindow) + 1;
     console.log(`MAIN: this is the size of sections ${size}`);
@@ -93,7 +99,9 @@ function startWorker(): void {
   let workerId = 0;
   while (start < videoLength) {
     if (start + processWindow >= videoLength) {
-      console.log(`MAIN : END: send the last video (${videoId}) to worker ${workerId}`);
+      console.log(
+        `MAIN : END: send the last video (${videoId}) to worker ${workerId}`,
+      );
       ffmpegWorkers[workerId].postMessage({
         video: videoBuffer,
         videoId: videoId,
@@ -103,7 +111,9 @@ function startWorker(): void {
         end: true,
       });
     } else {
-      console.log(`MAIN: PROCESS: send the video (${videoId}) to worker ${workerId}`);
+      console.log(
+        `MAIN: PROCESS: send the video (${videoId}) to worker ${workerId}`,
+      );
       ffmpegWorkers[workerId].postMessage({
         video: videoBuffer,
         videoId: videoId,
@@ -115,7 +125,10 @@ function startWorker(): void {
     }
     /** Sends the output frames from ffmpeg to autoflip worker */
     ffmpegWorkers[workerId].onmessage = function (e: MessageEvent): void {
-      console.log(`MAIN: frames(${e.data.videoId}) received from worker ${e.data.workerId}`, e.data);
+      console.log(
+        `MAIN: frames(${e.data.videoId}) received from worker ${e.data.workerId}`,
+        e.data,
+      );
       autoflipWorker.postMessage({
         frames: e.data.videoFrames,
         videoId: e.data.videoId,
@@ -139,7 +152,10 @@ function startWorker(): void {
 
   /** Renders video once got the result from autoflip */
   autoflipWorker.onmessage = function (e: MessageEvent) {
-    console.log(`MAIN: all frames received from worker ${e.data.workerId}`, e.data);
+    console.log(
+      `MAIN: all frames received from worker ${e.data.workerId}`,
+      e.data,
+    );
     // apply the cropInfo to current display video
     console.log(`MAIN: render the recevied video crop windows`);
     renderCroppedVideo(e.data);
@@ -150,7 +166,10 @@ function startWorker(): void {
 function renderCroppedVideo(videoCropInfo: CropInfo): void {
   let cropInfo = videoCropInfo.cropWindows;
   cropInfo = remainChanged(cropInfo);
-  console.log(`MAIN: only keep the changed crop windows, one entry for continuous same windows`, cropInfo);
+  console.log(
+    `MAIN: only keep the changed crop windows, one entry for continuous same windows`,
+    cropInfo,
+  );
   let shotsInfo = videoCropInfo.shots;
   console.log(`MAIN: result shots`, shotsInfo);
   const videoBlob = new Blob([videoBuffer], { type: 'video/mp4' });
@@ -161,15 +180,28 @@ function renderCroppedVideo(videoCropInfo: CropInfo): void {
   video.addEventListener('timeupdate', function (): void {
     const leftBox = <SVGRectElement>document.querySelector('#leftBox');
     const rightBox = <SVGRectElement>document.querySelector('#rightBox');
-    const videoDisplayWidth = (video.height / videoInfo.height) * videoInfo.width;
+    const videoDisplayWidth =
+      (video.height / videoInfo.height) * videoInfo.width;
+    console.log(
+      `video dimension:`,
+      video.height,
+      video.width,
+      videoInfo.height,
+      videoInfo.width,
+    );
     const offset = (video.width - videoDisplayWidth) / 2;
     // crop window example: width: 0.5625, height: 1, x: 0.21875, y: 0, time: 0
     for (let i = 0; i < cropInfo.length; i++) {
       if (this.currentTime > cropInfo[i].time) {
         leftBox.setAttribute('x', `${offset}`);
         leftBox.style.width = `${videoDisplayWidth * cropInfo[i].x}`;
-        rightBox.setAttribute('x', `${videoDisplayWidth * (cropInfo[i].x + cropInfo[i].width) + offset}`);
-        rightBox.style.width = `${videoDisplayWidth * (1 - cropInfo[i].x - cropInfo[i].width)}`;
+        rightBox.setAttribute(
+          'x',
+          `${videoDisplayWidth * (cropInfo[i].x + cropInfo[i].width) + offset}`,
+        );
+        rightBox.style.width = `${
+          videoDisplayWidth * (1 - cropInfo[i].x - cropInfo[i].width)
+        }`;
       }
     }
   });
