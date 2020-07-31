@@ -35,6 +35,8 @@ interface Signal {
   window: number;
   /** The indicator of the last section of the video */
   end: boolean;
+  /** The user input parameters for cropping */
+  user: { inputWidth: number; inputHeight: number };
 }
 
 /**
@@ -98,6 +100,8 @@ importScripts('autoflip_wasm/autoflip_live_loader.js');
 const ctx: any = self;
 let videoWidth: number = 0;
 let videoHeight: number = 0;
+let videoAspectWidth: number = 1;
+let videoAspectHeight: number = 1;
 let currentId: number = 0;
 let workerWindow: number = 0;
 let resultCropInfo: ExternalRenderingInformation[] = [];
@@ -121,48 +125,6 @@ Module.locateFile = (f: string): string => `autoflip_wasm/${f}`;
 let autoflipModule: any;
 const demo = (this as any).DemoModule(Module);
 
-demo.then((module: any): void => {
-  autoflipModule = module;
-  // These are the listeners that will recieve the changes from autoflip.
-  // They are called whenever there is a change.
-  let shotChange = {
-    onShot: (stream: string, change: boolean, timestampMs: number) => {
-      resultShots.push(timestampMs);
-    },
-  };
-  let externalRendering = {
-    onExternalRendering: (stream: string, proto: string) => {
-      let cropInfo = convertSeralizedExternalRenderingInfoToObj(proto);
-      resultCropInfo.push(cropInfo);
-    },
-  };
-  const shotPacketListener: any = autoflipModule.PacketListener.implement(
-    shotChange,
-  );
-  const extPacketListener: any = autoflipModule.PacketListener.implement(
-    externalRendering,
-  );
-
-  autoflipModule.attachListener(
-    'external_rendering_per_frame',
-    extPacketListener,
-  );
-  autoflipModule.attachListener('shot_change', shotPacketListener);
-
-  fetch('autoflip_wasm/autoflip_web_graph.binarypb')
-    .then(
-      (response): Promise<ArrayBuffer> => {
-        return response.arrayBuffer();
-      },
-    )
-    .then((buffer): void => {
-      autoflipModule.changeBinaryGraph(buffer);
-      // Sets the aspect ratio setAspectRatio(1, 1) = '1:1' or
-      // setAspectRatio(16, 11) = '16: 11'.
-      autoflipModule.setAspectRatio(16, 8);
-    });
-});
-
 /** Analyzes the input frames and output caculated crop windows for each frame. */
 onmessage = function (e: MessageEvent): void {
   let signal: Signal = e.data;
@@ -171,6 +133,54 @@ onmessage = function (e: MessageEvent): void {
     videoWidth = signal.width;
     videoHeight = signal.height;
     workerWindow = signal.window;
+    videoAspectWidth =
+      signal.user.inputWidth === 0 ? 1 : signal.user.inputWidth;
+    videoAspectHeight =
+      signal.user.inputHeight === 0 ? 1 : signal.user.inputHeight;
+
+    console.log(`user input`, signal.user.inputWidth, signal.user.inputHeight);
+    demo.then((module: any): void => {
+      autoflipModule = module;
+      // These are the listeners that will recieve the changes from autoflip.
+      // They are called whenever there is a change.
+      let shotChange = {
+        onShot: (stream: string, change: boolean, timestampMs: number) => {
+          resultShots.push(timestampMs);
+        },
+      };
+      let externalRendering = {
+        onExternalRendering: (stream: string, proto: string) => {
+          let cropInfo = convertSeralizedExternalRenderingInfoToObj(proto);
+          resultCropInfo.push(cropInfo);
+        },
+      };
+      const shotPacketListener: any = autoflipModule.PacketListener.implement(
+        shotChange,
+      );
+      const extPacketListener: any = autoflipModule.PacketListener.implement(
+        externalRendering,
+      );
+
+      autoflipModule.attachListener(
+        'external_rendering_per_frame',
+        extPacketListener,
+      );
+      autoflipModule.attachListener('shot_change', shotPacketListener);
+
+      fetch('autoflip_wasm/autoflip_web_graph.binarypb')
+        .then(
+          (response): Promise<ArrayBuffer> => {
+            return response.arrayBuffer();
+          },
+        )
+        .then((buffer): void => {
+          autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
+
+          // Sets the aspect ratio setAspectRatio(1, 1) = '1:1' or
+          // setAspectRatio(16, 11) = '16: 11'.
+          autoflipModule.changeBinaryGraph(buffer);
+        });
+    });
   }
   // Gets frameData from indexDB and process with Autoflip.
   readFramesFromIndexedDB(signal.videoId, signal.startTime).then(

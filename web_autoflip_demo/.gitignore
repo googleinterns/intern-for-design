@@ -8,7 +8,6 @@
 !ffmpeg.js
 !*_api*.js
 !autoflip_demo_UI/autoflip_wasm
-!autoflip_demo_UI/render.js
 
 # Ingore all node_modules
 node_modules

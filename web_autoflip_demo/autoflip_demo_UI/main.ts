@@ -91,6 +91,7 @@ let size: number = 0;
 let videoFile: File;
 let videoResize: Resize;
 let shotArray: number[] = [];
+let userInput = { inputWidth: 0, inputHeight: 0 };
 const video = <HTMLVideoElement>document.querySelector('#video-display');
 const card1 = <HTMLDivElement>document.querySelector('#card1');
 const card2 = <HTMLDivElement>document.querySelector('#card2');
@@ -106,6 +107,8 @@ const maskMiddle = <SVGRectElement>document.querySelector('#mask-middle');
 
 // Adds event to html element.
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
+const aspectWidth = <HTMLInputElement>document.querySelector('#aspect-weight');
+const aspectHeight = <HTMLInputElement>document.querySelector('#aspect-height');
 inputVideo.onchange = handleOnChange;
 const demoButton = <HTMLButtonElement>document.querySelector('#start-demo');
 demoButton.onclick = startDemo;
@@ -240,7 +243,7 @@ function putMiddle(): void {
   videoSection.style.marginLeft = `${left}px`;
 }
 
-/** Handles onChange event of input element. */
+/** Handles onChange event of input video element. */
 function handleOnChange(event: Event): void {
   let promise = new Promise(function (resolve: any): void {
     if (videoFile === undefined) {
@@ -268,9 +271,17 @@ function handleOnChange(event: Event): void {
         y: video.offsetTop,
         ratio: ratio,
       };
+      console.log(`video info`, videoInfo, videoResize);
       console.log(`MAIN: get video infomation`, videoInfo);
       size = Math.floor(video.duration / processWindow) + 1;
       console.log(`MAIN: this is the size of sections ${size}`);
+
+      // Reads the user inputs for aspect ratio;
+      const inputHeight = aspectHeight.value;
+      const inputWidth = aspectWidth.value;
+      console.log(`The user input is`, inputHeight, inputWidth);
+      userInput.inputWidth = Number(inputWidth);
+      userInput.inputHeight = Number(inputHeight);
 
       // Creates file reader to read video file as an array buffer
       const reader = new FileReader();
@@ -336,6 +347,7 @@ function startWorker(): void {
           height: videoInfo.height,
           window: processWindow,
           end: e.data.videoId === size - 1,
+          user: userInput,
         });
         autoflipFree = false;
         expected++;
@@ -466,7 +478,9 @@ function scaleVideo(videoCropInfoSingle: ExternalRenderingInformation) {
   const renderInfo = videoCropInfoSingle.renderToLocation as Rect;
   const aspectRatio = renderInfo.width / renderInfo.height;
   const scaleRatio =
-    renderInfo.width / Math.max(cropInfo.width / aspectRatio, cropInfo.height);
+    cropInfo.width / aspectRatio > cropInfo.height
+      ? renderInfo.width / cropInfo.width
+      : renderInfo.height / cropInfo.height;
   const curWidth = videoResize.width * scaleRatio;
   const curHeight = videoResize.height * scaleRatio;
   video.width = curWidth;

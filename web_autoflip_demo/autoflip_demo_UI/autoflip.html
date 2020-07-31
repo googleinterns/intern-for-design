@@ -26,25 +26,60 @@ limitations under the License.
   </head>
   <body>
     <h1 style="text-align: left; margin-left: 10rem;">AutoFlip</h1>
-
-    <div class="card" id="card1">
-      <h1 style="text-align: center;">Upload a video to test!</h1>
-      <div class="zone">
-        <div id="dropZ">
-          <i class="material-icons">backup</i>
-          <div>Drag and drop your file here</div>
-          <span>OR</span>
-          <div class="selectFile">
-            <label for="file">Select file</label>
-            <input type="file" id="video-upload" accept="video/*" />
+    <div class="card" id="card1" style="display: flex;">
+      <div
+        class="card-child"
+        id="card11"
+        style="width: 70%; border: 0px solid red;"
+      >
+        <h1 style="text-align: center;">Upload a video to test!</h1>
+        <div class="zone">
+          <div id="dropZ">
+            <i class="material-icons">backup</i>
+            <div>Drag and drop your file here</div>
+            <span>OR</span>
+            <div class="selectFile">
+              <label for="file">Select file</label>
+              <input type="file" id="video-upload" accept="video/*" />
+            </div>
+            <p>File size limit : 10 MB</p>
           </div>
-          <p>File size limit : 10 MB</p>
+        </div>
+        <div style="text-align: center;">
+          <button id="start-demo">
+            Try our demo!
+          </button>
         </div>
       </div>
-      <div style="text-align: center;">
-        <button id="start-demo">
-          Try our demo!
-        </button>
+      <div
+        class="card-child"
+        id="card12"
+        style="
+          width: 30%;
+          text-align: center;
+          border: 0px solid red;
+          margin-left: 0;
+        "
+      >
+        <h3 style="margin-top: 80px;">Aspect Ratio</h3>
+        <form>
+          <label for="fname">Weight:</label><br />
+          <input type="text" id="aspect-weight" name="aspectW" /><br />
+          <label for="lname">Height:</label><br />
+          <input type="text" id="aspect-height" name="aspectH" />
+        </form>
+
+        <h3 style="margin-top: 50px;">Crop Focus</h3>
+        <form>
+          <input type="checkbox" id="text" name="gender" value="male" />
+          <label for="male">Text</label><br />
+          <input type="checkbox" id="face" name="gender" value="female" />
+          <label for="female">Human Face</label><br />
+          <input type="checkbox" id="other" name="gender" value="other" />
+          <label for="female">Animal</label><br />
+          <input type="checkbox" id="other" name="gender" value="other" />
+          <label for="other">Other</label>
+        </form>
       </div>
     </div>
 
