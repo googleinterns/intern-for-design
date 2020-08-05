@@ -168,56 +168,69 @@ LipTrackCalculator::LipTrackCalculator() {}
 ::mediapipe::Status LipTrackCalculator::Process(
     mediapipe::CalculatorContext* cc) {
   auto output_bbox = ::absl::make_unique<std::vector<Detection>>();
+  auto output_landmark_lists = ::absl::make_unique<std::vector<NormalizedLandmarkList>>();
   std::map<int32, std::deque<float>> cur_face_statistics;
   std::vector<float> statistics;
   
+  if (cc->Inputs().Tag(kInputVideo).Value().IsEmpty()) {
+    return ::mediapipe::UnknownErrorBuilder(MEDIAPIPE_LOC)
+           << "No VIDEO input at time " << cc->InputTimestamp().Seconds();
+  }
+
   const auto& frame = cc->Inputs().Tag(kInputVideo).Get<ImageFrame>();
   frame_width_ = frame.Width();
   frame_height_ = frame.Height();
   frame_format_ = frame.Format();
   cv::Mat mat_frame = mediapipe::formats::MatView(&frame);
 
-  const auto& input_landmark_lists = 
-        cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
-  const auto& input_detections =
-        cc->Inputs().Tag(kInputDetection).Get<std::vector<Detection>>(); 
-  
-  GetStatistics(input_landmark_lists, &statistics);
-  for (int cur_face_idx = 0; cur_face_idx < input_detections.size(); ++cur_face_idx) {
-    auto& bbox = input_detections[cur_face_idx];
-    // Check whether the face appeared before
-    int previous_face_idx = MatchFace(bbox);
-    cur_face_statistics.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
-    // If the face appeared, add the new data to the previous deque.
-    if (previous_face_idx != -1) {
-      // Add previous statistics.
-      for (auto& value : face_statistics_[previous_face_idx]) 
-        cur_face_statistics[cur_face_idx].push_back(value);
-      // Add new statistics.
-      cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
-      while (cur_face_statistics[cur_face_idx].size() > options_.variance_history())
-        cur_face_statistics[cur_face_idx].pop_front();
+  if (!cc->Inputs().Tag(kInputLandmark).Value().IsEmpty() && !cc->Inputs().Tag(kInputDetection).Value().IsEmpty()) {
+    const auto& input_landmark_lists = 
+            cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
+    const auto& input_detections =
+            cc->Inputs().Tag(kInputDetection).Get<std::vector<Detection>>(); 
+    
+    GetStatistics(input_landmark_lists, &statistics);
+    for (int cur_face_idx = 0; cur_face_idx < input_detections.size(); ++cur_face_idx) {
+        auto& bbox = input_detections[cur_face_idx];
+        // Check whether the face appeared before
+        int previous_face_idx = MatchFace(bbox);
+        cur_face_statistics.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
+        // If the face appeared, add the new data to the previous deque.
+        if (previous_face_idx != -1) {
+        // Add previous statistics.
+        for (auto& value : face_statistics_[previous_face_idx]) 
+            cur_face_statistics[cur_face_idx].push_back(value);
+        // Add new statistics.
+        cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
+        while (cur_face_statistics[cur_face_idx].size() > options_.variance_history())
+            cur_face_statistics[cur_face_idx].pop_front();
+        }
+        // If the face did not appear, add the new data.
+        else {
+        cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
+        }
+        if (IsActiveSpeaker(cur_face_statistics[cur_face_idx]))
+        speaker_id_ = cur_face_idx;
     }
-    // If the face did not appear, add the new data.
-    else {
-      cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
-    }
-    if (IsActiveSpeaker(cur_face_statistics[cur_face_idx]))
-      speaker_id_ = cur_face_idx;
-  }
-  if (speaker_id_ != -1)
-    output_bbox->push_back(input_detections[speaker_id_]);
+    if (speaker_id_ != -1)
+        output_bbox->push_back(input_detections[speaker_id_]);
 
-  // Update the history
-  face_bbox_ = input_detections;
-  face_statistics_ = cur_face_statistics;
-  speaker_id_ = -1;
-  speaker_mean_ = 0;
-  speaker_variance_ = 0;
+    // Update the history
+    face_bbox_ = input_detections;
+    face_statistics_ = cur_face_statistics;
+    speaker_id_ = -1;
+    speaker_mean_ = 0;
+    speaker_variance_ = 0;
+
+    for (auto& list : input_landmark_lists)
+      output_landmark_lists->push_back(list);
+  }
 
   // Optionally output the visualization frames of lit contour and related information.
   if (cc->Outputs().HasTag(kOutputContour)) 
-    MP_RETURN_IF_ERROR(OutputVizFrames(input_landmark_lists, *output_bbox.get(), mat_frame, cc));
+    MP_RETURN_IF_ERROR(OutputVizFrames(*output_landmark_lists.get(), *output_bbox.get(), mat_frame, cc));
+
+  output_landmark_lists.release();
 
   cc->Outputs().Tag(kOutputROI).Add(output_bbox.release(), cc->InputTimestamp());
   return ::mediapipe::OkStatus();
@@ -324,17 +337,22 @@ bool LipTrackCalculator::IsActiveSpeaker(const std::deque<float>& face_lip_stati
     const std::vector<NormalizedLandmarkList>& input_landmark_lists,
     const std::vector<Detection>& active_speaker_bbox, 
     const cv::Mat& scene_frame, CalculatorContext* cc) {
+
   auto viz_frame = absl::make_unique<ImageFrame>(
     frame_format_, frame_width_, frame_height_);
   cv::Mat viz_mat = formats::MatView(viz_frame.get());
   scene_frame.copyTo(viz_mat);
 
-  MP_RETURN_IF_ERROR(DrawLandMarksAndInfor(input_landmark_lists, 
+  if (!input_landmark_lists.empty()) {
+    MP_RETURN_IF_ERROR(DrawLandMarksAndInfor(input_landmark_lists, 
               kGreen, kBlue, &viz_mat));
-  // Draw input face bbox
-  MP_RETURN_IF_ERROR(DrawBBox(face_bbox_, false, kGreen, &viz_mat));
-  // Draw active speaker face bbox
-  MP_RETURN_IF_ERROR(DrawBBox(active_speaker_bbox, true, kRed, &viz_mat));
+    // Draw input face bbox
+    if (!face_bbox_.empty())
+      MP_RETURN_IF_ERROR(DrawBBox(face_bbox_, false, kGreen, &viz_mat));
+    // Draw active speaker face bbox
+    if (!active_speaker_bbox.empty())
+      MP_RETURN_IF_ERROR(DrawBBox(active_speaker_bbox, true, kRed, &viz_mat));
+  }
 
   cc->Outputs().Tag(kOutputContour).Add(viz_frame.release(), cc->InputTimestamp());
   return ::mediapipe::OkStatus();

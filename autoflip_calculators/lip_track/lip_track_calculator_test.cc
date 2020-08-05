@@ -137,19 +137,23 @@ void AddScene(const std::vector<float>& landmark_value, const int64 time_ms,
     Adopt(input_frame.release()).At(timestamp));
 
   // Setup landmarks
-  auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
-  NormalizedLandmarkList landmarks_list;
-  CreateLandmarkList(landmark_value, &landmarks_list);
-  vec_landmarks_list->push_back(landmarks_list);
-  inputs->Tag(kInputLandmark).packets.push_back(
-      Adopt(vec_landmarks_list.release()).At(timestamp));
+  if (!landmark_value.empty()) {
+    auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
+    NormalizedLandmarkList landmarks_list;
+    CreateLandmarkList(landmark_value, &landmarks_list);
+    vec_landmarks_list->push_back(landmarks_list);
+    inputs->Tag(kInputLandmark).packets.push_back(
+        Adopt(vec_landmarks_list.release()).At(timestamp));
+  }
 
   // Setup ROIS
-  auto vec_roi = absl::make_unique<std::vector<Detection>>();
-  Detection roi = CreateRoi(roi_value);
-  vec_roi->push_back(roi);
-  inputs->Tag(kInputROI).packets.push_back(
-      Adopt(vec_roi.release()).At(timestamp));
+  if (!roi_value.empty()) {
+    auto vec_roi = absl::make_unique<std::vector<Detection>>();
+    Detection roi = CreateRoi(roi_value);
+    vec_roi->push_back(roi);
+    inputs->Tag(kInputROI).packets.push_back(
+        Adopt(vec_roi.release()).At(timestamp));
+  }
 }
 
 void SetInputs(const std::vector<std::vector<float>>& landmark_values,
@@ -178,6 +182,18 @@ void CheckOutputs(const int32 scene_num, const std::vector<int32>& gt_output_num
     EXPECT_FLOAT_EQ(roi_values[i][2], bboxes[0].location_data().relative_bounding_box().width());
     EXPECT_FLOAT_EQ(roi_values[i][3], bboxes[0].location_data().relative_bounding_box().height());
   }
+}
+
+// Two frames, no landmarksList (face)
+TEST(LipTrackCalculatorTest, NoLandmarksList) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{0, 0};
+  const std::vector<std::vector<float>> empty_landmarks{std::vector<float>(), std::vector<float>()};
+  const std::vector<std::vector<float>> empty_roi{std::vector<float>(), std::vector<float>()};
+  SetInputs(empty_landmarks, kTimeStampTwo, empty_roi, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSame, runner.get());
 }
 
 // One frame, one landmarksList (face), no speaker
