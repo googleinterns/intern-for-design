@@ -384,7 +384,7 @@ namespace drishti
                     emscripten::optional_override([](PacketListener &self,
                                                      const std::string &stream,
                                                      double face_proto_str) {
-                      return self.PacketListener::onNumber(stream, face_proto_str);
+                      return self.PacketListener::onFace(stream, face_proto_str);
                     }));
     }
 
