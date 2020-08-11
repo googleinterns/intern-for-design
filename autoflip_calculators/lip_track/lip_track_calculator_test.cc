@@ -41,6 +41,7 @@ constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputROI[] = "DETECTIONS";
 constexpr char kOutputROI[] = "DETECTIONS_SPEAKERS";
+constexpr char kOutputShot[] = "IS_SPEAKER_CHANGE";
 
 const int32 kImagewidth = 800; 
 const int32 kImageheight = 600;
@@ -73,13 +74,17 @@ constexpr char kConfig[] = R"(
     input_stream: "LANDMARKS:multi_face_landmarks"
     input_stream: "DETECTIONS:face_detections"
     output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
+    output_stream: "IS_SPEAKER_CHANGE:speaker_change"
     options: {
       [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
         iou_threshold: 0.2
         lip_mean_threshold_big_mouth: 0.3
         lip_variance_threshold_big_mouth: 0.0
         lip_mean_threshold_small_mouth: 0.2
-        lip_variance_threshold_small_mouth: 0.2
+        lip_variance_threshold_small_mouth: 0.0
+        output_shot_boundary: true
+        min_shot_span: 0
+        min_speaker_span: 0
       }
     })";
 
@@ -115,7 +120,8 @@ Detection CreateRoi(const std::vector<float>& values) {
   return roi;
 }
 
-CalculatorGraphConfig::Node MakeConfig(const std::string base_config, const int32 history) {
+CalculatorGraphConfig::Node MakeConfig(const std::string base_config, const int32 history,
+        const int64 min_speaker_span=0) {
   auto config = ParseTextProtoOrDie<CalculatorGraphConfig::Node>(base_config);
   config.mutable_options()
     ->MutableExtension(LipTrackCalculatorOptions::ext)
@@ -123,6 +129,9 @@ CalculatorGraphConfig::Node MakeConfig(const std::string base_config, const int3
   config.mutable_options()
     ->MutableExtension(LipTrackCalculatorOptions::ext)
     ->set_mean_history(history);
+    config.mutable_options()
+    ->MutableExtension(LipTrackCalculatorOptions::ext)
+    ->set_min_speaker_span(min_speaker_span);
   return config;
 }
 
@@ -137,23 +146,19 @@ void AddScene(const std::vector<float>& landmark_value, const int64 time_ms,
     Adopt(input_frame.release()).At(timestamp));
 
   // Setup landmarks
-  if (!landmark_value.empty()) {
-    auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
-    NormalizedLandmarkList landmarks_list;
-    CreateLandmarkList(landmark_value, &landmarks_list);
-    vec_landmarks_list->push_back(landmarks_list);
-    inputs->Tag(kInputLandmark).packets.push_back(
-        Adopt(vec_landmarks_list.release()).At(timestamp));
-  }
+  auto vec_landmarks_list = absl::make_unique<std::vector<NormalizedLandmarkList>>();
+  NormalizedLandmarkList landmarks_list;
+  CreateLandmarkList(landmark_value, &landmarks_list);
+  vec_landmarks_list->push_back(landmarks_list);
+  inputs->Tag(kInputLandmark).packets.push_back(
+      Adopt(vec_landmarks_list.release()).At(timestamp));
 
   // Setup ROIS
-  if (!roi_value.empty()) {
-    auto vec_roi = absl::make_unique<std::vector<Detection>>();
-    Detection roi = CreateRoi(roi_value);
-    vec_roi->push_back(roi);
-    inputs->Tag(kInputROI).packets.push_back(
-        Adopt(vec_roi.release()).At(timestamp));
-  }
+  auto vec_roi = absl::make_unique<std::vector<Detection>>();
+  Detection roi = CreateRoi(roi_value);
+  vec_roi->push_back(roi);
+  inputs->Tag(kInputROI).packets.push_back(
+      Adopt(vec_roi.release()).At(timestamp));
 }
 
 void SetInputs(const std::vector<std::vector<float>>& landmark_values,
@@ -182,18 +187,6 @@ void CheckOutputs(const int32 scene_num, const std::vector<int32>& gt_output_num
     EXPECT_FLOAT_EQ(roi_values[i][2], bboxes[0].location_data().relative_bounding_box().width());
     EXPECT_FLOAT_EQ(roi_values[i][3], bboxes[0].location_data().relative_bounding_box().height());
   }
-}
-
-// Two frames, no landmarksList (face)
-TEST(LipTrackCalculatorTest, NoLandmarksList) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
-  int32 scene_num = 2;
-  std::vector<int32> gt_output_nums{0, 0};
-  const std::vector<std::vector<float>> empty_landmarks{std::vector<float>(), std::vector<float>()};
-  const std::vector<std::vector<float>> empty_roi{std::vector<float>(), std::vector<float>()};
-  SetInputs(empty_landmarks, kTimeStampTwo, empty_roi, runner.get());
-  MP_ASSERT_OK(runner->Run());
-  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSame, runner.get());
 }
 
 // One frame, one landmarksList (face), no speaker
@@ -238,12 +231,40 @@ TEST(LipTrackCalculatorTest, TwoFacesSmallMouth) {
 
 // Two frames, one landmarksList (face), one speaker
 TEST(LipTrackCalculatorTest, TwofacesOneSpeaker) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2));
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 2, 3000));
   int32 scene_num = 2;
-  std::vector<int32> gt_output_nums{0, 1};
+  std::vector<int32> gt_output_nums{1, 1};
   SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoSame, runner.get());
   MP_ASSERT_OK(runner->Run());
   CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoSame, runner.get());
+}
+
+// Check shot boundary output. Two frames, two landmarksLists (faces),
+// two speakers
+TEST(LipTrackCalculatorTest, ShotBoundary) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{1, 1};
+  SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoDiff, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  CheckOutputs(scene_num, gt_output_nums, kRoiValueTwoDiff, runner.get());
+
+  const std::vector<Packet>& output_shot_boundary = 
+      runner.get()->Outputs().Tag(kOutputShot).packets;
+  EXPECT_EQ(output_shot_boundary[0].Get<bool>(), true);
+  EXPECT_EQ(output_shot_boundary[1].Get<bool>(), true);
+}
+
+// Check min speaker span and close. Two frames, two landmarksLists (faces),
+// one speakers
+TEST(LipTrackCalculatorTest, SpeakerSpanAndClose) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1, 5000));
+  int32 scene_num = 2;
+  std::vector<int32> gt_output_nums{1, 1};
+  SetInputs(kLandmaksValueTwoSame, kTimeStampTwo, kRoiValueTwoDiff, runner.get());
+  MP_ASSERT_OK(runner->Run());
+  std::vector<std::vector<float>> output{{0.4, 0.1, 0.2, 0.6}, {0.4, 0.1, 0.2, 0.6}};
+  CheckOutputs(scene_num, gt_output_nums, output, runner.get());
 }
 
 }  // namespace

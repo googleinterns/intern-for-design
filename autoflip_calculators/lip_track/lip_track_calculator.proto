@@ -40,4 +40,14 @@ message LipTrackCalculatorOptions {
   optional float lip_variance_threshold_big_mouth = 5 [default = 0.001];
   optional float lip_mean_threshold_small_mouth = 6 [default = 0.09];
   optional float lip_variance_threshold_small_mouth = 7 [default = 0.0013];
+
+  // Output shot boundary
+  optional bool output_shot_boundary = 8 [default = true];
+  // Only send shot boundary results if the speaker changes
+  optional bool output_shot_boundary_only_on_change = 9 [default = true];
+  // Minimum number of shot duration (in seconds).
+  optional double min_shot_span = 10 [default = 2];
+
+  // Minimum number of speaker duration (in microseconds).
+  optional double min_speaker_span = 11 [default = 2000000];
 }
