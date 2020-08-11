@@ -42,6 +42,7 @@ namespace drishti
       } output_;
 
       bool started_graph_ = false;
+      timestamp_ = 0;
       std::unique_ptr<CalculatorGraph> graph_;
       std::vector<std::function<void()>> action_list_;
       int64 timestamp_ = 0;
@@ -343,6 +344,7 @@ namespace drishti
       emscripten::function("getExifInfo", &GetExifInfo);
       emscripten::function("runTillIdle", &CppRunTillIdle);
       emscripten::function("closeGraphInternal", &CloseGraphInternal);
+      emscripten::function("cycleGraph", &CycleGraph);
 
       emscripten::class_<easyexif::EXIFInfo>("EXIFInfo")
           .property("orientation", &easyexif::EXIFInfo::Orientation)
