@@ -26,25 +26,13 @@ node {
   }
 }
 
-# VIDEO_PREP: Create a low frame rate stream for feature extraction.
-node {
-  calculator: "PacketThinnerCalculator"
-  input_stream: "video_frames_scaled"
-  output_stream: "video_frames_scaled_downsampled"
-  options: {
-    [mediapipe.PacketThinnerCalculatorOptions.ext]: {
-      thinner_type: ASYNC
-      period: 200000
-    }
-  }
-}
-
 # DETECTION: find active speaker on the down sampled stream
 node {
   calculator: "AutoFlipActiveSpeakerDetectionSubgraph"
   input_stream: "VIDEO:video_frames_scaled"
   output_stream: "DETECTIONS_SPEAKERS:active_speaker_detections"
   output_stream: "DETECTIONS:face_detections"
+  output_stream: "IS_SPEAKER_CHANGE:speaker_change"
   output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
 }
 
