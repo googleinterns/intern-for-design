@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "research/drishti/app/pursuit/wasm/graph_utils.h"
 #include "third_party/absl/strings/str_cat.h"
 #include "third_party/mediapipe/framework/formats/yuv_image.h"
 #include "third_party/libyuv/files/include/libyuv/convert.h"
@@ -68,7 +67,7 @@ namespace drishti {
                 virtual void onNumber(const std::string& stream, double number) const {}
                 virtual void onShot(const std::string& stream, bool shotChanged, double timestamp_seconds) const {}
                 virtual void onExternalRendering(const std::string& stream, const std::string& frame_proto_str) const {}
-                virtual void onFace(const std::string &stream, const std::string &face_proto_str) const {}
+                virtual void onFace(const std::string &stream, const std::string &face_proto_str, double timestamp) const {}
             };
 
             void AttachListener(const std::string& stream_name,
@@ -81,13 +80,11 @@ namespace drishti {
                             stream_name,
                             [stream_name, &listener](const Packet& packet) {
                                 if (packet.ValidateAsType<float>().ok()) {
-                                    LOG(ERROR) << "Go inside the numberCatch!";
                                     const auto result = packet.Get<float>();
                                     listener.onNumber(stream_name, result);
                                 }
                                 else if (packet.ValidateAsType<std::pair<int, int>>()
                                     .ok()) {
-                                    LOG(ERROR) << "Go inside the sizeCatch!";
                                     const auto& pair = packet.Get<std::pair<int, int>>();
                                     SizeRect result;
                                     result.x = pair.first;
@@ -95,28 +92,35 @@ namespace drishti {
                                     listener.onSize(stream_name, result);
                                 }
                                 else if (packet.ValidateAsType<bool>().ok()) {
-                                    LOG(ERROR) << "Go inside the shotCatch!";
                                     const auto result = packet.Get<bool>();
                                     const auto timestamp = packet.Timestamp();
                                     const double seconds = timestamp.Microseconds();
                                     listener.onShot(stream_name, result, seconds);
                                 }
                                 else if (packet.ValidateAsType<mediapipe::autoflip::ExternalRenderFrame>().ok()) {
-                                    LOG(ERROR) << "Go inside the ExternalRenderFrameCatch!";
                                     const auto result = packet.Get<mediapipe::autoflip::ExternalRenderFrame>();
                                     apps::jspb::JspbFormat jspb_format;
                                     const auto string_or = jspb_format.PrintToString(result);
                                     listener.onExternalRendering(stream_name, string_or.value_or(""));
                                 }
                                 else if (packet.ValidateAsType<mediapipe::autoflip::DetectionSet>().ok()) {
-                                    LOG(ERROR) << "Go inside the detectionSetCatch!";
                                     const auto result = packet.Get<mediapipe::autoflip::DetectionSet>();
-                                    const auto faceRect = result.detections(0).location_normalized();
-                                    LOG(ERROR) << " face0 " << faceRect.x() << " " << faceRect.y() << " " << faceRect.width() << " " << faceRect.height() << "\n";
+                                    const double time = packet.Timestamp().Microseconds();
+                                    LOG(ERROR) << "timestamp " << time;
+                                    LOG(ERROR) << "Size of face regions in detection" << result.detections().size();
+                                    const auto faceRegions = result.detections();
+                                    // The loop for debug, to replace with debug string of detection set
+                                    for (int i = 0; i < faceRegions.size(); i++) {
+                                        auto face = region_set->detections(i).location_normalized();
+                                        auto score = region_set->detections(i).score();
+                                        auto isRequired = region_set->detections(i).is_required();
+                                        auto signal = region_set->detections(i).signal_type().standard();
+                                        std::cout << "signal " << signal << " size " << size << " isRequired " << isRequired << " score " << score << " time " << time << " face" << i << " " << face.x() << " " << face.y() << " " << face.width() << " " << face.height() << "\n";
+                                    }
+
                                     apps::jspb::JspbFormat jspb_format;
-                                    const auto string_or = jspb_format.PrintToString(faceRect);
-                                    LOG(ERROR) << string_or;
-                                    listener.onFace(stream_name, string_or.value_or(""));
+                                    const auto string_or = jspb_format.PrintToString(faceRegions);
+                                    listener.onFace(stream_name, string_or.value_or(""), time);
                                 }
                                 return OkStatus();
                             })
@@ -306,8 +310,8 @@ namespace drishti {
             void onExternalRendering(const std::string& stream, const std::string& frame_proto_str) const {
                 return call<void>("onExternalRendering", stream, frame_proto_str);
             }
-            void onFace(const std::string &stream, const std::string &face_proto_str) const {
-                return call<void>("onFace", stream, face_proto_str);
+            void onFace(const std::string &stream, const std::string &face_proto_str, double timestamp) const {
+                return call<void>("onFace", stream, face_proto_str, timestamp);
             }
         };
 
@@ -350,31 +354,31 @@ namespace drishti {
                         const std::string& stream,
                         const SizeRect& data) {
                             return self.PacketListener::onSize(stream, data);
-                        }))
+                }))
                 .function("onShot",
                     emscripten::optional_override([](PacketListener& self,
                         const std::string& stream,
                         const bool& shotChanged, double timestamp_seconds) {
                             return self.PacketListener::onShot(stream, shotChanged, timestamp_seconds);
-                        }))
-                            .function("onExternalRendering",
-                                emscripten::optional_override([](PacketListener& self,
-                                    const std::string& stream,
-                                    const std::string& frame_proto_str) {
-                                        return self.PacketListener::onExternalRendering(stream, frame_proto_str);
-                                    }))
-                            .function("onNumber",
-                                emscripten::optional_override([](PacketListener& self,
-                                    const std::string& stream,
-                                    double number) {
-                                        return self.PacketListener::onNumber(stream, number);
-                                    }))
-                                        .function("onFace",
-                                            emscripten::optional_override([](PacketListener &self,
-                                                const std::string &stream,
-                                                const std::string &face_proto_str) {
-                                                    return self.PacketListener::onFace(stream, face_proto_str);
-                                                }));
+                }))
+                .function("onExternalRendering",
+                    emscripten::optional_override([](PacketListener& self,
+                        const std::string& stream,
+                        const std::string& frame_proto_str) {
+                            return self.PacketListener::onExternalRendering(stream, frame_proto_str);
+                 }))
+                .function("onNumber",
+                    emscripten::optional_override([](PacketListener& self,
+                        const std::string& stream,
+                        double number) {
+                            return self.PacketListener::onNumber(stream, number);
+                }))
+                .function("onFace",
+                    emscripten::optional_override([](PacketListener &self,
+                        const std::string &stream,
+                        const std::string &face_proto_str, double timestamp) {
+                            return self.PacketListener::onFace(stream, face_proto_str, timestamp);
+                }));
         }
 
     }  // namespace wasm
