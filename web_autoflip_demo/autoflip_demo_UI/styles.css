@@ -6,7 +6,7 @@ body {
   /* Add shadows to create the "card" effect */
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
   transition: 0.3s;
-  padding: 30px 0px;
+  padding: 0px;
   margin: 20px 50px;
 }
 .card-child {
@@ -81,19 +81,19 @@ body {
 
 #myBar-ffmpeg {
   width: 0%;
-  height: 30px;
-  background-color: #4caf50;
+  height: 20px;
+  background-color: #4285f4;
 }
 
 #myBar-autoflip {
   width: 0%;
-  height: 30px;
-  background-color: #4caf50;
+  height: 20px;
+  background-color: #4285f4;
 }
 
 #start-demo,
 .crop-button {
-  padding: 15px 32px;
+  padding: 10px 32px;
   text-align: center;
   display: inline-block;
   font-size: 16px;

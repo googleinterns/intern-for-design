@@ -225,33 +225,33 @@ Module.expectedDataFileDownloads++;
     }
   };
   loadPackage({
-    package_uuid: 'bde4152f-f024-4b6c-899d-6255071a7a4a',
     files: [
       {
-        audio: 0,
         start: 0,
-        filename: '/face_detection_front_labelmap.txt',
+        audio: 0,
         end: 5,
+        filename: '/face_detection_front_labelmap.txt',
       },
       {
-        audio: 0,
         start: 5,
-        filename: '/face_detection_front.tflite',
+        audio: 0,
         end: 229037,
+        filename: '/face_detection_front.tflite',
       },
       {
-        audio: 0,
         start: 229037,
-        filename: '/face_detection_back_labelmap.txt',
+        audio: 0,
         end: 229042,
+        filename: '/face_detection_back_labelmap.txt',
       },
       {
-        audio: 0,
         start: 229042,
-        filename: '/face_detection_back.tflite',
+        audio: 0,
         end: 544374,
+        filename: '/face_detection_back.tflite',
       },
     ],
     remote_package_size: 544374,
+    package_uuid: 'b3149894-be86-4363-95ef-d054e83079bd',
   });
 })();

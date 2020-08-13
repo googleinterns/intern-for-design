@@ -6,6 +6,7 @@ input_stream: "video_size"
 input_side_packet: "aspect_ratio"
 output_stream: "shot_change"
 output_stream: "external_rendering_per_frame"
+output_stream: "face_regions"
 
 max_queue_size: 100
 
@@ -78,6 +79,11 @@ node {
   input_stream: "VIDEO:video_frames_scaled_downsampled"
   input_stream: "FACES:face_detections"
   output_stream: "REGIONS:face_regions"
+  options {
+    [mediapipe.autoflip.FaceToRegionCalculatorOptions.ext] {
+      export_whole_face: true
+    }
+  }
 }
 
 # SIGNAL FUSION: Combine detections (with weights) on each frame
