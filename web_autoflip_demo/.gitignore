@@ -7,6 +7,7 @@
 # Allow ffmepg/autoflip wasm files written in javascript files.
 !ffmpeg.js
 !*_api*.js
+!autoflip_demo_UI/autoflip_wasm/*
 
 # Ingore all node_modules
 node_modules
