@@ -11,3 +11,6 @@ node_modules
 # Ignore contents of dist folder except index.html.
 dist/*
 !dist/index.html
+
+# Ignore coverage testing folder
+coverage

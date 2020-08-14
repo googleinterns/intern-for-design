@@ -1,5 +1,6 @@
 import JSONEditor, {JSONEditorOptions} from 'jsoneditor';
 import {css, CSSResult, customElement, html, LitElement, property, TemplateResult} from 'lit-element';
+import {Add} from './library';
 
 // Used to include styles from node_modules, for example those in json editor.
 require('./styles.css');
@@ -30,6 +31,7 @@ export class AppElement extends LitElement {
     return html`
       <div class="container">
         The random string is ${this.randomString}.
+        2 + 3 = ${Add(2, 3)}.
         <div id="json"></div>
       </div>
     `;
