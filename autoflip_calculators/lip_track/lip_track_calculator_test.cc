@@ -50,7 +50,8 @@ const int32 kFaceMeshLandmarks = 468;
 // Lip contour landmarks.
 // Lip left inner corner: 78, lip right inner corner: 308.
 // Lip upper {82, 13, 312}, lip lower {87, 14, 317};
-const std::vector<int32> kLandmarksIdx{78, 308, 82, 13, 312, 87, 14, 317};
+const std::vector<int32> kInnerLandmarksIdx{78, 308, 82, 13, 312, 87, 14, 317};
+const std::vector<int32> kOuterLandmarksIdx{61, 291, 37, 0, 267, 84, 17, 314};
 // x,y,z of 6 landmarks
 const std::vector<std::vector<float>> kLandmaksValueOneClose{{0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0}};
 const std::vector<std::vector<float>> kLandmaksValueOneOpen{{0.1,0.5,0, 0.5,0.5,0, 0.2,0.6,0, 0.3,0.6,0, 0.4,0.6,0, 0.2,0.4,0, 0.3,0.4,0, 0.4,0.4,0}};
@@ -78,10 +79,14 @@ constexpr char kConfig[] = R"(
     options: {
       [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
         iou_threshold: 0.2
-        lip_mean_threshold_big_mouth: 0.3
-        lip_variance_threshold_big_mouth: 0.0
-        lip_mean_threshold_small_mouth: 0.2
-        lip_variance_threshold_small_mouth: 0.0
+        lip_inner_mean_threshold_big_mouth: 0.3
+        lip_inner_variance_threshold_big_mouth: 0.0
+        lip_inner_mean_threshold_small_mouth: 0.2
+        lip_inner_variance_threshold_small_mouth: 0.0
+        lip_outer_mean_threshold_big_mouth: 0.3
+        lip_outer_variance_threshold_big_mouth: 0.0
+        lip_outer_mean_threshold_small_mouth: 0.2
+        lip_outer_variance_threshold_small_mouth: 0.0
         output_shot_boundary: true
         min_shot_span: 0
         min_speaker_span: 0
@@ -101,7 +106,13 @@ void CreateLandmarkList(const std::vector<float>& values, NormalizedLandmarkList
     *list->add_landmark() = CreateLandmark(0.0f, 0.0f, 0.0f);
 
   int i = 0;
-  for (auto& idx : kLandmarksIdx){
+  for (auto& idx : kInnerLandmarksIdx){
+    list->mutable_landmark(idx)->set_x(values[i++]);
+    list->mutable_landmark(idx)->set_y(values[i++]);
+    list->mutable_landmark(idx)->set_z(values[i++]);
+  }
+  i = 0;
+  for (auto& idx : kOuterLandmarksIdx){
     list->mutable_landmark(idx)->set_x(values[i++]);
     list->mutable_landmark(idx)->set_y(values[i++]);
     list->mutable_landmark(idx)->set_z(values[i++]);
@@ -165,7 +176,7 @@ void SetInputs(const std::vector<std::vector<float>>& landmark_values,
               const std::vector<int64>& time_stamps_ms, 
               const std::vector<std::vector<float>>& roi_values,
               CalculatorRunner* runner) {
-  for (int i = 0; i < time_stamps_ms.size(); ++i){
+  for (int i = 0; i < landmark_values.size(); ++i){
     AddScene(landmark_values[i], time_stamps_ms[i], roi_values[i], runner->MutableInputs());
   }
 }
@@ -187,6 +198,25 @@ void CheckOutputs(const int32 scene_num, const std::vector<int32>& gt_output_num
     EXPECT_FLOAT_EQ(roi_values[i][2], bboxes[0].location_data().relative_bounding_box().width());
     EXPECT_FLOAT_EQ(roi_values[i][3], bboxes[0].location_data().relative_bounding_box().height());
   }
+}
+
+// No landmarksList.
+TEST(LipTrackCalculatorTest, NoLandmarksList) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1));
+  int32 scene_num = 1;
+  const std::vector<std::vector<float>> empty_landmarks;
+  SetInputs(empty_landmarks, kTimeStampOne, kRoiValueOne, runner.get());
+  MP_ASSERT_OK(runner->Run());
+}
+
+// No landmarksList and no ROI.
+TEST(LipTrackCalculatorTest, NoLandmarksListAndNoRoi) {
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfig, 1));
+  int32 scene_num = 1;
+  const std::vector<std::vector<float>> empty_landmarks;
+  const std::vector<std::vector<float>> empty_roi;
+  SetInputs(empty_landmarks, kTimeStampOne, empty_roi, runner.get());
+  MP_ASSERT_OK(runner->Run());
 }
 
 // One frame, one landmarksList (face), no speaker

@@ -54,9 +54,14 @@ constexpr char kOutputContour[] = "CONTOUR_INFORMATION_FRAME";
 // Lip contour landmarks.
 const int32 kLipLeftInnerCornerIdx = 78;
 const int32 kLipRightInnerCornerIdx = 308;
-const std::vector<int32> kLipUpperIdx{82, 13, 312};
-const std::vector<int32> kLipLowerIdx{87, 14, 317};
-const std::vector<int32> kLipContourIdx{78, 82, 13, 312, 308, 317, 14, 87};
+const std::vector<int32> kLipInnerUpperIdx{82, 13, 312};
+const std::vector<int32> kLipInnerLowerIdx{87, 14, 317};
+const std::vector<int32> kLipInnerContourIdx{78, 82, 13, 312, 308, 317, 14, 87};
+const int32 kLipLeftOuterCornerIdx = 61;
+const int32 kLipRightOuterCornerIdx = 291;
+const std::vector<int32> kLipOuterUpperIdx{37, 0, 267};
+const std::vector<int32> kLipOuterLowerIdx{84, 17, 314};
+const std::vector<int32> kLipOuterContourIdx{61, 37, 0, 267, 291, 84, 17, 314};
 
 // Landmarks size
 const int32 kFaceMeshLandmarks = 468;
@@ -73,8 +78,9 @@ struct LipSignal {
   int64 timestamp;
 };
 
-// This calculator tracks the lip motion and detects active speakers in the images.
-// Lip contour is obtained from face mesh. The output is speakers' face bound boxes. 
+// This calculator tracks the lip motion based on face mesh landmarks and detects
+// active speakers in the images. Lip contour is obtained from face mesh. The output
+// is speakers' face bound boxes. 
 // Example:
 //    calculator: "LipTrackCalculator"
 //    input_stream: "VIDEO:input_video"
@@ -105,18 +111,22 @@ class LipTrackCalculator : public CalculatorBase {
   // Obtain lip statistics from face landmarks
   ::mediapipe::Status GetStatistics(
     const std::vector<NormalizedLandmarkList>& landmark_lists, 
-    std::vector<float>* lip_statistics); 
+    int lip_left_corner, int lip_right_corner, const std::vector<int32>& lip_upper,
+    const std::vector<int32>& lip_lower, std::vector<float>* lip_statistics); 
   // Find match face from last frame. If not find, return -1, otherwise
   // return the face index.
   int MatchFace(const Detection& face_bbox);
   // Convert Detection to opencv Rect
   cv::Rect2f DetectionToRect(const Detection& bbox);
   // Determine whether the face is active speaker or not.
-  bool IsActiveSpeaker(const std::deque<float>& face_lip_statistics);
+  ::mediapipe::Status IsActiveSpeaker(const std::deque<float>& face_lip_statistics_inner, 
+                    const std::deque<float>& face_lip_statistics_outer, bool* is_speaker);
   // Calculator the absolute Euclidean distance between two landmarks.
   float GetDistance(const NormalizedLandmark& mark_1, const NormalizedLandmark& mark_2);
   // Calculator IOU of two face bboxes.
   float GetIOU(const Detection& bbox_1, const Detection& bbox_2);
+  void GetMeanAndVariance(const std::deque<float>& face_lip_statistics,
+                float* mean, float* variance); 
   // Convert landmark to cv point2f.
   cv::Point2f LandmarkToPoint(const int idx, const NormalizedLandmarkList& landmark_list);
   // Draws and outputs visualization frames if those streams are present.
@@ -139,13 +149,16 @@ class LipTrackCalculator : public CalculatorBase {
   // Face bounding boxes in last frame.
   std::vector<Detection> face_bbox_;
   // Face statistics in previous frames.
-  std::map<int32, std::deque<float>> face_statistics_;
+  std::map<int32, std::deque<float>> face_statistics_outer_;
+  std::map<int32, std::deque<float>> face_statistics_inner_;
   // The indices are the face ids in the frame, and values
   // are the corresponding meta face ids. 
   std::vector<int32> meta_face_indices_;
   // Active speaker information.
-  float speaker_mean_ = 0;
-  float speaker_variance_ = 0;
+  float speaker_mean_inner_ = 0;
+  float speaker_variance_inner_ = 0;
+  float speaker_mean_outer_ = 0;
+  float speaker_variance_outer_ = 0;
   // For speaker shot.
   int pre_dominate_speaker_id_ = -1;
   std::vector<Detection> pre_dominate_speaker_detection_;
@@ -234,7 +247,8 @@ LipTrackCalculator::LipTrackCalculator() {}
     MP_RETURN_IF_ERROR(ProcessScene(cc));
   }
   pre_dominate_speaker_detection_.clear();
-  face_statistics_.clear();
+  face_statistics_inner_.clear();
+  face_statistics_outer_.clear();
   meta_face_indices_.clear();
 
   return ::mediapipe::OkStatus();
@@ -261,27 +275,40 @@ LipTrackCalculator::LipTrackCalculator() {}
     if (input_landmark_lists.empty() || input_detections.empty())
       continue;
   
-    std::map<int32, std::deque<float>> cur_face_statistics;
+    std::map<int32, std::deque<float>> cur_face_statistics_inner;
+    std::map<int32, std::deque<float>> cur_face_statistics_outer;
     std::vector<int32> cur_meta_face_indices;
-    std::vector<float> statistics;
+    std::vector<float> statistics_inner, statistics_outer;
 
-    MP_RETURN_IF_ERROR(GetStatistics(input_landmark_lists, &statistics));
+    MP_RETURN_IF_ERROR(GetStatistics(input_landmark_lists, kLipLeftInnerCornerIdx, kLipRightInnerCornerIdx,
+    kLipInnerUpperIdx, kLipInnerLowerIdx, &statistics_inner));
+    MP_RETURN_IF_ERROR(GetStatistics(input_landmark_lists, kLipLeftOuterCornerIdx, kLipRightOuterCornerIdx,
+    kLipOuterUpperIdx, kLipOuterLowerIdx, &statistics_outer));
+
     int cur_speaker_id = -1;
     for (int cur_face_idx = 0; cur_face_idx < input_detections.size(); ++cur_face_idx) {
       auto& bbox = input_detections[cur_face_idx];
       // Check whether the face appeared before
       int previous_face_idx = MatchFace(bbox);
-      cur_face_statistics.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
+      cur_face_statistics_inner.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
+      cur_face_statistics_outer.insert(std::pair< int32, std::deque<float> >(cur_face_idx, std::deque<float>()));
       // If the face appeared, add the new data to the previous deque and update meta_faces.
       if (previous_face_idx != -1) {
         // Add previous statistics.
-        for (auto& value : face_statistics_[previous_face_idx]) {
-          cur_face_statistics[cur_face_idx].push_back(value);
+        for (auto& value : face_statistics_inner_[previous_face_idx]) {
+          cur_face_statistics_inner[cur_face_idx].push_back(value);
+        }
+        for (auto& value : face_statistics_outer_[previous_face_idx]) {
+          cur_face_statistics_outer[cur_face_idx].push_back(value);
         }
         // Add new statistics.
-        cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
-        while (cur_face_statistics[cur_face_idx].size() > options_.variance_history()) {
-          cur_face_statistics[cur_face_idx].pop_front();
+        cur_face_statistics_inner[cur_face_idx].push_back(statistics_inner[cur_face_idx]);
+        while (cur_face_statistics_inner[cur_face_idx].size() > options_.variance_history()) {
+          cur_face_statistics_inner[cur_face_idx].pop_front();
+        }
+        cur_face_statistics_outer[cur_face_idx].push_back(statistics_outer[cur_face_idx]);
+        while (cur_face_statistics_outer[cur_face_idx].size() > options_.variance_history()) {
+          cur_face_statistics_outer[cur_face_idx].pop_front();
         }
         // Update meta_faces
         int meta_face_idx = meta_face_indices_[previous_face_idx];
@@ -291,7 +318,8 @@ LipTrackCalculator::LipTrackCalculator() {}
       // If the face did not appear, add the new data and update meta_faces.
       else {
         // Add new statistics.
-        cur_face_statistics[cur_face_idx].push_back(statistics[cur_face_idx]);
+        cur_face_statistics_inner[cur_face_idx].push_back(statistics_inner[cur_face_idx]);
+        cur_face_statistics_outer[cur_face_idx].push_back(statistics_outer[cur_face_idx]);
         // Update meta_faces
         meta_faces.insert(std::pair< int32, std::vector<int32> >(meta_face_count, std::vector<int32>()));
         for (int i = 0; i < signal_buff_.size(); ++i) {
@@ -301,7 +329,11 @@ LipTrackCalculator::LipTrackCalculator() {}
         cur_meta_face_indices.push_back(meta_face_count);
         meta_face_count ++;
       }
-      if (IsActiveSpeaker(cur_face_statistics[cur_face_idx]))
+      bool is_active_speaker;
+      MP_RETURN_IF_ERROR(IsActiveSpeaker(cur_face_statistics_inner[cur_face_idx], 
+      cur_face_statistics_outer[cur_face_idx], &is_active_speaker));
+      // LOG(ERROR) << "Timestamp: " << signal.timestamp/1000000 << " " << "Face id:" << cur_face_idx;
+      if (is_active_speaker)
         cur_speaker_id = cur_face_idx;
     } // end cur_face_idx
       
@@ -317,9 +349,12 @@ LipTrackCalculator::LipTrackCalculator() {}
 
     // Update the history
     face_bbox_ = input_detections;
-    face_statistics_ = cur_face_statistics;
-    speaker_mean_ = 0;
-    speaker_variance_ = 0;
+    face_statistics_inner_ = cur_face_statistics_inner;
+    face_statistics_outer_ = cur_face_statistics_outer;
+    speaker_mean_inner_ = 0;
+    speaker_variance_inner_ = 0;
+    speaker_mean_outer_ = 0;
+    speaker_variance_outer_ = 0;
     meta_face_indices_ = cur_meta_face_indices;
   } // end buff_position
 
@@ -357,7 +392,8 @@ LipTrackCalculator::LipTrackCalculator() {}
     pre_dominate_speaker_detection_.clear();
     signal_buff_.clear();
     face_bbox_.clear();
-    face_statistics_.clear();
+    face_statistics_inner_.clear();
+    face_statistics_outer_.clear();
     meta_face_indices_.clear();
 
     return ::mediapipe::OkStatus();
@@ -431,7 +467,8 @@ LipTrackCalculator::LipTrackCalculator() {}
   pre_dominate_speaker_detection_.push_back(dominate_speaker_detection[0]);
   signal_buff_.clear();
   face_bbox_.clear();
-  face_statistics_.clear();
+  face_statistics_inner_.clear();
+  face_statistics_outer_.clear();
   meta_face_indices_.clear();
 
   return ::mediapipe::OkStatus(); 
@@ -444,20 +481,21 @@ float LipTrackCalculator::GetDistance(const NormalizedLandmark& mark_1,
 }
 
 ::mediapipe::Status LipTrackCalculator::GetStatistics(const std::vector<NormalizedLandmarkList>& landmark_lists, 
-                    std::vector<float>* lip_statistics) {
+                    int lip_left_corner, int lip_right_corner, const std::vector<int32>& lip_upper,
+                    const std::vector<int32>& lip_lower, std::vector<float>* lip_statistics) {
   float mouth_width = 0.0f, mouth_height = 0.0f;
   for (const auto& landmark_list : landmark_lists) {
     if (landmark_list.landmark_size() < kFaceMeshLandmarks){
       continue;
     }
-    mouth_width = GetDistance(landmark_list.landmark(kLipLeftInnerCornerIdx),
-                              landmark_list.landmark(kLipRightInnerCornerIdx));
-    for (auto i = 0; i < kLipUpperIdx.size(); ++i) {
-      mouth_height += GetDistance(landmark_list.landmark(kLipUpperIdx[i]),
-                              landmark_list.landmark(kLipLowerIdx[i]));
+    mouth_width = GetDistance(landmark_list.landmark(lip_left_corner),
+                              landmark_list.landmark(lip_right_corner));
+    for (auto i = 0; i < lip_upper.size(); ++i) {
+      mouth_height += GetDistance(landmark_list.landmark(lip_upper[i]),
+                              landmark_list.landmark(lip_lower[i]));
     }
     // Average the height is better since it may need more points in the future.
-    mouth_height /= (float)kLipUpperIdx.size();
+    mouth_height /= (float)lip_upper.size();
     lip_statistics->push_back(mouth_height / mouth_width);
   }
 
@@ -500,40 +538,72 @@ float LipTrackCalculator::GetIOU(const Detection& bbox_1, const Detection& bbox_
   return intersecting_region.area() / union_region.area();
 }
 
-bool LipTrackCalculator::IsActiveSpeaker(const std::deque<float>& face_lip_statistics) {
-  // If a face only appears in a few frames, it's not an active speaker. 
-  if (face_lip_statistics.size() <= options_.variance_history() / 2)
-    return false;
-  float mean_short = 0.0f, mean = 0.0f, variance = 0.0;
-  if (face_lip_statistics.size() < options_.mean_history())
-    mean_short = face_lip_statistics[0];
+void LipTrackCalculator::GetMeanAndVariance(const std::deque<float>& face_lip_statistics,
+                      float* mean, float* variance) {
+  *mean = 0.0f;
+  *variance = 0.0f;                      
+  if (face_lip_statistics.size() < options_.mean_history()) {
+    *mean = face_lip_statistics[0];
+  }
   else {
     for (int i = face_lip_statistics.size()-options_.mean_history(); i < face_lip_statistics.size(); ++i) {
-      mean_short += face_lip_statistics[i];
+      *mean += face_lip_statistics[i];
     }
-    mean_short /= (float)options_.mean_history();
+    *mean /= (float)options_.mean_history();
   }
-  
+  float mean_full = 0.0f;
+  for (auto& value : face_lip_statistics)
+    mean_full += value;
+  mean_full /= (float)face_lip_statistics.size();
   for (auto& value : face_lip_statistics) 
-    mean += value;
-  mean /= (float)face_lip_statistics.size();
-  for (auto& value : face_lip_statistics) 
-    variance += std::pow(value - mean, 2);
-  variance /= (float)face_lip_statistics.size();
+    *variance += std::pow(value - mean_full, 2);
+  *variance /= (float)face_lip_statistics.size();
+}
 
-  if ((mean_short >= options_.lip_mean_threshold_big_mouth() 
-    && variance >= options_.lip_variance_threshold_big_mouth()
-    && mean_short > speaker_mean_)
-    || 
-    (mean_short >= options_.lip_mean_threshold_small_mouth()
-    && variance >= options_.lip_variance_threshold_small_mouth()
-    && variance > speaker_variance_)) {
-      speaker_mean_ = mean_short;
-      speaker_variance_ = variance;
-      return true;
-    }
+::mediapipe::Status LipTrackCalculator::IsActiveSpeaker(
+  const std::deque<float>& face_lip_statistics_inner,
+  const std::deque<float>& face_lip_statistics_outer, bool* is_speaker) {
+  RET_CHECK_EQ(face_lip_statistics_inner.size(), face_lip_statistics_outer.size())
+    << "Statistics is not correct.";
+  // If a face only appears in a few frames, it's not an active speaker. 
+  if (face_lip_statistics_inner.size() <= options_.variance_history() / 2) {
+    *is_speaker = false;
+    return ::mediapipe::OkStatus();
+  }
+
+  float mean_inner = 0.0f, variance_inner = 0.0,
+        mean_outer = 0.0f, variance_outer = 0.0;
+  GetMeanAndVariance(face_lip_statistics_inner, &mean_inner, &variance_inner);
+  GetMeanAndVariance(face_lip_statistics_outer, &mean_outer, &variance_outer);
+  // LOG(ERROR) << "face_lip_statistics_inner: " << mean_inner << " " << variance_inner;
+  // LOG(ERROR) << "face_lip_statistics_outer: " << mean_outer << " " << variance_outer;
   
-  return false;
+  if ((mean_inner >= options_.lip_inner_mean_threshold_big_mouth() // Inner lip
+    && variance_inner >= options_.lip_inner_variance_threshold_big_mouth()
+    && mean_inner > speaker_mean_inner_)
+    || 
+    (mean_inner >= options_.lip_inner_mean_threshold_small_mouth()
+    && variance_inner >= options_.lip_inner_variance_threshold_small_mouth()
+    && variance_inner > speaker_variance_inner_)
+    || // Outer lip
+    (mean_outer >= options_.lip_outer_mean_threshold_big_mouth() 
+    && variance_outer >= options_.lip_outer_variance_threshold_big_mouth()
+    && mean_outer > speaker_mean_outer_)
+    || 
+    (mean_outer >= options_.lip_outer_mean_threshold_small_mouth()
+    && variance_outer >= options_.lip_outer_variance_threshold_small_mouth()
+    && variance_outer > speaker_variance_outer_)
+    ) {
+      speaker_mean_inner_ = mean_inner;
+      speaker_variance_inner_ = variance_inner;
+      speaker_mean_outer_ = mean_outer;
+      speaker_variance_outer_ = variance_outer;
+      *is_speaker = true;
+      return ::mediapipe::OkStatus();
+    }
+
+  *is_speaker = false;
+  return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status LipTrackCalculator::OutputVizFrames(
@@ -575,34 +645,20 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
       const cv::Scalar& contour_color, cv::Mat* viz_mat) {
   for (int i = 0; i < landmark_lists.size(); ++i) {
     auto& landmark_list = landmark_lists[i];
-    std::deque<float> stat = face_statistics_[i];
     std::vector<cv::Point2f> vertices;
-    for (auto& idx : kLipContourIdx)
+    for (auto& idx : kLipInnerContourIdx)
       vertices.push_back(LandmarkToPoint(idx, landmark_list));
     for (int j = 0; j < 8; ++j) {
       // Draw lip landmarks
-      cv::circle(*viz_mat, vertices[j], 3, landmark_color, CV_FILLED);
+      cv::circle(*viz_mat, vertices[j], 1, landmark_color, CV_FILLED);
     }
-    // // Draw information
-    // float mean = 0.0f, mean_short = 0.0f, variance = 0.0;
-    // int base = 20, dy = 20;
-    // if (stat.size() < 2)
-    //   mean_short = stat[0];
-    // else {
-    //   for (int i = stat.size()-2; i < stat.size(); ++i) {
-    //     mean_short += stat[i];
-    //   }
-    //   mean_short /= 2.0f;
-    // }
-    // for (auto& value : stat) 
-    //   mean += value;
-    // mean /= (float)stat.size();
-    // for (auto& value : stat) 
-    //   variance += std::pow(value - mean, 2);
-    // variance /= (float)stat.size();
-    // std::string label = cv::format("Face_%d Histroy: %d  Mean: %.4f Mean_short: %.4f Variance: %.4f", 
-    //           i, stat.size(), mean, mean_short, variance);
-    // cv::putText(*viz_mat, label, cv::Point2f(base,base+i*dy), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
+    vertices.clear();
+    for (auto& idx : kLipOuterContourIdx)
+      vertices.push_back(LandmarkToPoint(idx, landmark_list));
+    for (int j = 0; j < 8; ++j) {
+      // Draw lip landmarks
+      cv::circle(*viz_mat, vertices[j], 1, landmark_color, CV_FILLED);
+    }
   }
 
   return ::mediapipe::OkStatus();
@@ -620,10 +676,10 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
     };
     for (int j = 0; j < 4; ++j)
       cv::line(*viz_mat, vertices[j], vertices[(j+1)%4], color, 2);
-    // if (!detected){
-    //   std::string label = cv::format("Face_%d ", i);
-    //   cv::putText(*viz_mat, label, vertices[0], cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
-    // }
+    if (!detected){
+      std::string label = cv::format("Face_%d ", i);
+      cv::putText(*viz_mat, label, vertices[0], cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
+    }
   }
   return ::mediapipe::OkStatus();
 }

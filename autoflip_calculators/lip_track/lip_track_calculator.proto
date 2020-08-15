@@ -36,18 +36,22 @@ message LipTrackCalculatorOptions {
 
   // Lip statistics thresholds which are used to detect
   // the active speaker.
-  optional float lip_mean_threshold_big_mouth = 4 [default = 0.18];
-  optional float lip_variance_threshold_big_mouth = 5 [default = 0.001];
-  optional float lip_mean_threshold_small_mouth = 6 [default = 0.09];
-  optional float lip_variance_threshold_small_mouth = 7 [default = 0.0013];
+  optional float lip_inner_mean_threshold_big_mouth = 4 [default = 0.18];
+  optional float lip_inner_variance_threshold_big_mouth = 5 [default = 0.001];
+  optional float lip_inner_mean_threshold_small_mouth = 6 [default = 0.07];
+  optional float lip_inner_variance_threshold_small_mouth = 7 [default = 0.00125];
+  optional float lip_outer_mean_threshold_big_mouth = 8 [default = 0.62];
+  optional float lip_outer_variance_threshold_big_mouth = 9 [default = 0.0012];
+  optional float lip_outer_mean_threshold_small_mouth = 10 [default = 0.45];
+  optional float lip_outer_variance_threshold_small_mouth = 11 [default = 0.0015];
 
-  // Output shot boundary
-  optional bool output_shot_boundary = 8 [default = true];
+  // Output shot boundarys
+  optional bool output_shot_boundary = 12 [default = true];
   // Only send shot boundary results if the speaker changes
-  optional bool output_shot_boundary_only_on_change = 9 [default = true];
+  optional bool output_shot_boundary_only_on_change = 13 [default = true];
   // Minimum number of shot duration (in seconds).
-  optional double min_shot_span = 10 [default = 2];
+  optional double min_shot_span = 14 [default = 2];
 
   // Minimum number of speaker duration (in microseconds).
-  optional double min_speaker_span = 11 [default = 2000000];
+  optional double min_speaker_span = 15 [default = 2000000];
 }
