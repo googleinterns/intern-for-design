@@ -1,5 +1,5 @@
-# Autoflip graph that renders the final cropped video and debugging videos.
-# For use by developers who may be adding signals and adjusting weights.
+# Autoflip graph that only renders the final cropped video. For use with
+# end user applications.
 max_queue_size: -1
 
 # VIDEO_PREP: Decodes an input video file into images and a video header.
