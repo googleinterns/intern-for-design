@@ -52,15 +52,23 @@ constexpr char kOutputShot[] = "IS_SPEAKER_CHANGE";
 constexpr char kOutputContour[] = "CONTOUR_INFORMATION_FRAME";
 
 // Lip contour landmarks.
+// Inner lip conrner
 const int32 kLipLeftInnerCornerIdx = 78;
 const int32 kLipRightInnerCornerIdx = 308;
+// Inner upper lip landmarks
 const std::vector<int32> kLipInnerUpperIdx{82, 13, 312};
+// Inner lower lip landmarks
 const std::vector<int32> kLipInnerLowerIdx{87, 14, 317};
+// Inner lip contour
 const std::vector<int32> kLipInnerContourIdx{78, 82, 13, 312, 308, 317, 14, 87};
+// Outer lip conrner
 const int32 kLipLeftOuterCornerIdx = 61;
 const int32 kLipRightOuterCornerIdx = 291;
+// Outer upper lip landmarks
 const std::vector<int32> kLipOuterUpperIdx{37, 0, 267};
+// Outer lower lip landmarks
 const std::vector<int32> kLipOuterLowerIdx{84, 17, 314};
+// Outer lip contour
 const std::vector<int32> kLipOuterContourIdx{61, 37, 0, 267, 291, 84, 17, 314};
 
 // Landmarks size
@@ -200,6 +208,7 @@ LipTrackCalculator::LipTrackCalculator() {}
     mediapipe::CalculatorContext* cc) {
   options_ = cc->Options<LipTrackCalculatorOptions>();
   last_shot_timestamp_ = Timestamp(0);
+  pre_dominate_speaker_id_ = -1;
 
   return ::mediapipe::OkStatus();
 }
@@ -332,7 +341,7 @@ LipTrackCalculator::LipTrackCalculator() {}
       bool is_active_speaker;
       MP_RETURN_IF_ERROR(IsActiveSpeaker(cur_face_statistics_inner[cur_face_idx], 
       cur_face_statistics_outer[cur_face_idx], &is_active_speaker));
-      // LOG(ERROR) << "Timestamp: " << signal.timestamp/1000000 << " " << "Face id:" << cur_face_idx;
+
       if (is_active_speaker)
         cur_speaker_id = cur_face_idx;
     } // end cur_face_idx
@@ -686,8 +695,8 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
 
 void LipTrackCalculator::Transmit(mediapipe::CalculatorContext* cc,
           bool is_speaker_change, int64 timestamp) {
-  if ((Timestamp(timestamp) - last_shot_timestamp_).Seconds() <
-      options_.min_shot_span()) {
+  if (last_shot_timestamp_.Seconds() != 0 
+      && (Timestamp(timestamp) - last_shot_timestamp_).Seconds() < options_.min_shot_span()) {
     is_speaker_change = false;
   }
   if (is_speaker_change) {
