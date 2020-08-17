@@ -35,7 +35,7 @@ namespace {
 
 constexpr char kIsShotBoundaryTag[] = "SHOT_BOUNDARY";
 constexpr char kOutputTag[] = "OUTPUT";
-const int kScenenum = 2;
+const int kOutputNum = 1;
 
 // Time stamp
 const std::vector<int64> kTimeStamp{2000, 4000};
@@ -167,11 +167,11 @@ const char kConfigMissId[] = R"(
     })";
 
 CalculatorGraphConfig::Node MakeConfig(const std::string base_config, 
-        const int64 max_scene_size=0) {
+        const int64 min_shot_span=2) {
   auto config = ParseTextProtoOrDie<CalculatorGraphConfig::Node>(base_config);
     config.mutable_options()
     ->MutableExtension(ShotChangeFusingCalculatorOptions::ext)
-    ->set_max_scene_size(max_scene_size);
+    ->set_min_shot_span(min_shot_span);
   return config;
 }
 
@@ -202,7 +202,7 @@ void SetInputs(const std::vector<std::vector<bool>>& shot_chages_list,
   }
 }
 
-void CheckOutputs(const int32 scene_num, const std::vector<bool>& gt_output,
+void CheckOutputs(const int32 output_num, const std::vector<bool>& gt_output,
     const std::string& tag, CalculatorRunner* runner) {
   std::vector<Packet> output_packets;
   if (tag != "") {
@@ -211,10 +211,10 @@ void CheckOutputs(const int32 scene_num, const std::vector<bool>& gt_output,
   else {
     output_packets = runner->Outputs().Index(0).packets;
   }
-  ASSERT_EQ(scene_num, output_packets.size());
+  ASSERT_EQ(output_num, output_packets.size());
   
   bool signal;
-  for (int i = 0; i < scene_num; ++i) {
+  for (int i = 0; i < output_num; ++i) {
     signal = output_packets[i].Get<bool>();
     EXPECT_EQ(gt_output[i], signal);
   }
@@ -222,77 +222,63 @@ void CheckOutputs(const int32 scene_num, const std::vector<bool>& gt_output,
 
 // Check one input.
 TEST(ShotChangeFusingCalculatorTest, OneInput) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigOne, 0));
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigOne));
   std::string tag;
-  std::vector<bool> gt_output{true, false};
+  std::vector<bool> gt_output{true};
   SetInputs(kSignalOneInput, kTimeStamp, tag, runner.get());
   MP_ASSERT_OK(runner->Run());
-  CheckOutputs(kScenenum, gt_output, tag, runner.get());
+  CheckOutputs(kOutputNum, gt_output, tag, runner.get());
 }
 
 // Check two inputs.
 TEST(ShotChangeFusingCalculatorTest, TwoInputs) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigTwo, 0));
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigTwo));
   std::string tag;
-  std::vector<bool> gt_output{true, false};
+  std::vector<bool> gt_output{true};
   SetInputs(kSignalTwoInput1, kTimeStamp, tag, runner.get());
   MP_ASSERT_OK(runner->Run());
-  CheckOutputs(kScenenum, gt_output, tag, runner.get());
+  CheckOutputs(kOutputNum, gt_output, tag, runner.get());
 }
 
 // Check Three inputs.
 TEST(ShotChangeFusingCalculatorTest, ThreeInputs) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigThree, 0));
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigThree));
   std::string tag;
-  std::vector<bool> gt_output{true, false};
+  std::vector<bool> gt_output{true};
   SetInputs(kSignalThreeInput, kTimeStamp, tag, runner.get());
   MP_ASSERT_OK(runner->Run());
-  CheckOutputs(kScenenum, gt_output, tag, runner.get());
+  CheckOutputs(kOutputNum, gt_output, tag, runner.get());
 }
 
 // Check the case which size doen not equal.
 TEST(ShotChangeFusingCalculatorTest, Size) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigSize, 0));
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigSize));
   std::string tag;
-  std::vector<bool> gt_output{true, false};
   SetInputs(kSignalTwoInput1, kTimeStamp, tag, runner.get());
   ASSERT_FALSE(runner->Run().ok());
 }
 
 // Check tag interface.
 TEST(ShotChangeFusingCalculatorTest, TagInterface) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigTag, 0));
-  std::vector<bool> gt_output{true, false};
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigTag));
+  std::vector<bool> gt_output{true};
   SetInputs(kSignalTwoInput1, kTimeStamp, kIsShotBoundaryTag, runner.get());
   MP_ASSERT_OK(runner->Run());
-  CheckOutputs(kScenenum, gt_output, kOutputTag, runner.get());
+  CheckOutputs(kOutputNum, gt_output, kOutputTag, runner.get());
 }
 
 // Check duplicate.
 TEST(ShotChangeFusingCalculatorTest, DuplicateId) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigDuplicate, 0));
-  std::vector<bool> gt_output{true, false};
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigDuplicate));
   SetInputs(kSignalTwoInput1, kTimeStamp, kIsShotBoundaryTag, runner.get());
   ASSERT_FALSE(runner->Run().ok());
 } 
 
 // Check miss ID.
 TEST(ShotChangeFusingCalculatorTest, MissId) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigMissId, 0));
-  std::vector<bool> gt_output{true, false};
+  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigMissId));
   SetInputs(kSignalTwoInput1, kTimeStamp, kIsShotBoundaryTag, runner.get());
   ASSERT_FALSE(runner->Run().ok());
-}
-
-// Check priority and max_scene_size.
-TEST(ShotChangeFusingCalculatorTest, PriorityAndMaxSceneSize) {
-  auto runner = ::absl::make_unique<CalculatorRunner>(MakeConfig(kConfigTwo, 1));
-  std::string tag;
-  int32 scene_num = 1;
-  std::vector<bool> gt_output{true};
-  SetInputs(kSignalTwoInput2, kTimeStamp, tag, runner.get());
-  MP_ASSERT_OK(runner->Run());
-  CheckOutputs(scene_num, gt_output, tag, runner.get());
 }
 
 

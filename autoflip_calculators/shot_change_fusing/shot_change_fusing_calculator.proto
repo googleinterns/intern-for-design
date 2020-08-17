@@ -19,7 +19,7 @@ package mediapipe.autoflip;
 import "mediapipe/examples/desktop/autoflip/autoflip_messages.proto";
 import "mediapipe/framework/calculator.proto";
 
-// Next tag: 4
+// Next tag: 3
 message ShotChangeFusingCalculatorOptions {
   extend mediapipe.CalculatorOptions {
     optional ShotChangeFusingCalculatorOptions ext = 280092317;
@@ -27,18 +27,15 @@ message ShotChangeFusingCalculatorOptions {
   // Setting related to each type of signal this calculator could process.
   repeated ShotSettings shot_settings = 1;
 
-  // Force a flush of the frame buffer after this number of frames.
-  optional int32 max_scene_size = 2 [default = 10];
-
   // If two shot change signals are within min_shot_span(in seconds),
   // they are considred as one siganl.
-  optional double min_shot_span = 3 [default = 2];
+  optional double min_shot_span = 2 [default = 2];
 }
 
 // Next tag: 3
 message ShotSettings {
   // For tag interface, optional for order interface.
-  optional int32 id = 1 [default = -6345];
+  optional int32 id = 1 [default = -1];
 
   // Priority of the shot change signal. static shot (scene) change has the 
   // hightest priority 0, since we need to precess the scene whenever there

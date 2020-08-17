@@ -29,15 +29,13 @@ using mediapipe::PacketTypeSet;
 
 constexpr char kIsShotBoundaryTag[] = "SHOT_BOUNDARY";
 constexpr char kOutputTag[] = "OUTPUT";
-const int kInfity = 10000; 
-const int kIdInitial = -6345;
 
 namespace mediapipe {
 namespace autoflip {
 
 struct ShotSignal {
   bool shot_change_signal = false;
-  int priority = kInfity;
+  int priority = std::numeric_limits<int>::max();
   mediapipe::Timestamp time;
 };
 
@@ -107,7 +105,8 @@ class ShotChangeFusingCalculator : public mediapipe::CalculatorBase {
   std::map<int32, int32> priority_;
   std::vector<ShotSignal> shot_signals_;
   bool tag_input_interface_;
-//   bool process_by_scene_;
+  // Last time a shot was detected.
+  Timestamp last_shot_timestamp_;
 };
 
 REGISTER_CALCULATOR(ShotChangeFusingCalculator);
@@ -150,8 +149,8 @@ mediapipe::Status ShotChangeFusingCalculator::Open(
   for (int count = 0; count < options_.shot_settings().size(); ++count) {
     const auto& setting = options_.shot_settings()[count];
     if (tag_input_interface_) {
-      RET_CHECK(setting.id() != kIdInitial) 
-        << "Shot change id is missing in tag interface";
+      RET_CHECK(setting.id() >= 0) 
+        << "Shot change ID is missing or ID is negative in tag interface. Please use non-negative ID.";
       RET_CHECK(priority_.find(setting.id()) ==  priority_.end())
         << "Duplicate shot change id: " << setting.id();
       priority_[setting.id()] = setting.priority();
@@ -161,11 +160,19 @@ mediapipe::Status ShotChangeFusingCalculator::Open(
     }
   }
 
+  last_shot_timestamp_ = Timestamp(0);
+
   return ::mediapipe::OkStatus();
 }
 
 mediapipe::Status ShotChangeFusingCalculator::Process(
     mediapipe::CalculatorContext* cc) {
+  // Flush bufferif it exceeds min_shot_span.
+  if (!shot_signals_.empty() 
+    && (cc->InputTimestamp() - shot_signals_[0].time).Seconds() > options_.min_shot_span()) {
+    MP_RETURN_IF_ERROR(ProcessScene(cc));
+  }
+
   ShotSignal signal;
   const auto& signal_packets = GetSignalPackets(cc);
   for (int i = 0; i < signal_packets.size(); ++i) {
@@ -179,15 +186,9 @@ mediapipe::Status ShotChangeFusingCalculator::Process(
     signal.priority = std::min(signal.priority, priority_[i]);
   }
   // Store the signal only when there is input and there is a shot change.
-  if (signal.priority != kInfity && signal.shot_change_signal) {
+  if (signal.priority != std::numeric_limits<int>::max() && signal.shot_change_signal) {
     signal.time = cc->InputTimestamp();
     shot_signals_.push_back(signal);
-  }
-
-  // Flush buffer on same input if it exceeds max_scene_size or if there is not
-  // shot input information.
-  if (!shot_signals_.empty() && shot_signals_.size() > options_.max_scene_size()) {
-    MP_RETURN_IF_ERROR(ProcessScene(cc));
   }
 
   return ::mediapipe::OkStatus();
@@ -204,31 +205,19 @@ mediapipe::Status ShotChangeFusingCalculator::Close(
 
 mediapipe::Status ShotChangeFusingCalculator::ProcessScene(
     mediapipe::CalculatorContext* cc) {
-  int position = 1, high_position = 0;
-  int high_priority = shot_signals_[0].priority;
-  // Last time a shot was detected.
-  Timestamp last_shot_timestamp = shot_signals_[0].time;
-  while (position < shot_signals_.size()) {
+  int high_position = -1;
+  int high_priority = std::numeric_limits<int>::max();
+
+  for (int position = 0; position < shot_signals_.size(); ++position) {
     auto signal = shot_signals_[position];
-    if ((signal.time - last_shot_timestamp).Seconds() < options_.min_shot_span()) {
-      // Update the signal.
-      if (signal.priority <= high_priority) {
+    if (signal.priority <= high_priority) {
         high_priority = signal.priority;
         high_position = position;
-      }
-    } 
-    else {
-      Transmit(cc, high_position);
-      high_priority = signal.priority;
-      last_shot_timestamp = signal.time;
-      high_position = position;
     }
-    position ++;
   }
-  // handle the last signal.
-  if (high_priority != kInfity) {
-    Transmit(cc, high_position);
-  }
+
+  Transmit(cc, high_position);
+  last_shot_timestamp_ = shot_signals_[high_position].time;
 
   shot_signals_.clear();
   return ::mediapipe::OkStatus();
@@ -256,7 +245,7 @@ void ShotChangeFusingCalculator::Transmit(
   auto output_signal = ::absl::make_unique<bool>();
   *output_signal = shot_signals_[position].shot_change_signal;
   Timestamp time =  shot_signals_[position].time;
-  if (output_signal) {
+  if (*output_signal) {
     LOG(INFO) << "Fusing Shot change at: " << time.Seconds()
           << " seconds.";
 
