@@ -1,5 +1,5 @@
-# Autoflip graph that only renders the final cropped video. For use with
-# end user applications.
+# Autoflip graph that renders the final cropped video and debugging videos.
+# For use by developers who may be adding signals and adjusting weights.
 max_queue_size: -1
 
 # VIDEO_PREP: Decodes an input video file into images and a video header.
@@ -63,19 +63,16 @@ node {
   }
 }
 
-# DETECTION: find objects on the down sampled stream
+# DETECTION: find texts on the down sampled stream
 node {
-  calculator: "AutoFlipObjectDetectionSubgraph"
+  calculator: "TextDetectionCalculator"
   input_stream: "VIDEO:video_frames_scaled_downsampled"
-  output_stream: "DETECTIONS:object_detections"
-}
-node {
-  calculator: "LocalizationToRegionCalculator"
-  input_stream: "DETECTIONS:object_detections"
-  output_stream: "REGIONS:object_regions"
+  output_stream: "REGIONS:text_regions"
   options {
-    [mediapipe.autoflip.LocalizationToRegionCalculatorOptions.ext] {
-      output_all_signals: true
+    [mediapipe.autoflip.TextDetectionCalculatorOptions.ext] {
+      model_path: "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb"
+      east_width: 320
+      east_height: 320
     }
   }
 }
@@ -108,14 +105,19 @@ node {
   output_stream: "REGIONS:face_regions"
 }
 
-# DETECTION: find texts on the down sampled stream
+# DETECTION: find objects on the down sampled stream
 node {
-  calculator: "TextDetectionCalculator"
+  calculator: "AutoFlipObjectDetectionSubgraph"
   input_stream: "VIDEO:video_frames_scaled_downsampled"
-  output_stream: "REGIONS:text_regions"
+  output_stream: "DETECTIONS:object_detections"
+}
+node {
+  calculator: "LocalizationToRegionCalculator"
+  input_stream: "DETECTIONS:object_detections"
+  output_stream: "REGIONS:object_regions"
   options {
-    [mediapipe.autoflip.TextDetectionCalculatorOptions.ext] {
-      model_path: "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb"
+    [mediapipe.autoflip.LocalizationToRegionCalculatorOptions.ext] {
+      output_all_signals: true
     }
   }
 }
@@ -175,19 +177,39 @@ node {
       }
       signal_settings {
         type { standard: TEXT }
-        min_score: 0.7
-        max_score: 0.8
+        min_score: 0.85
+        max_score: 0.9
         is_required: false
       }
       signal_settings {
         type { standard: SPEAKER }
         min_score: 0.85
         max_score: 0.9
-        is_required: false
+        is_required: true
       }
     }
   }
 }
+
+# SHOT CHANGE FUSION: Combine shot change on each frame
+ node {
+   calculator: "ShotChangeFusingCalculator"
+   input_stream: "SHOT_BOUNDARY:0:shot_change"
+   input_stream: "SHOT_BOUNDARY:1:speaker_change"
+   output_stream: "OUTPUT:fusing_change"
+   options:{
+     [mediapipe.autoflip.ShotChangeFusingCalculatorOptions.ext]:{
+       shot_settings{
+        id: 0
+         priority: 0
+       }
+       shot_settings{
+        id: 1
+         priority: 1
+       }
+     }
+   }
+ }
 
 # CROPPING: make decisions about how to crop each frame.
 node {
@@ -197,8 +219,7 @@ node {
   input_stream: "KEY_FRAMES:video_frames_scaled_downsampled"
   input_stream: "DETECTION_FEATURES:salient_regions"
   input_stream: "STATIC_FEATURES:borders"
-  input_stream: "SHOT_BOUNDARIES:shot_change"
-  input_stream: "SPEAKER_BOUNDARIES:speaker_change"
+  input_stream: "SHOT_BOUNDARIES:fusing_change"
   output_stream: "CROPPED_FRAMES:cropped_frames"
   options: {
     [mediapipe.autoflip.SceneCroppingCalculatorOptions.ext]: {
