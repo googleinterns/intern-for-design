@@ -179,7 +179,7 @@ mediapipe::Status ShotChangeFusingCalculator::Process(
     signal.priority = std::min(signal.priority, priority_[i]);
   }
   // Store the signal only when there is input and there is a shot change.
-  if (signal.priority != kInfity || signal.shot_change_signal) {
+  if (signal.priority != kInfity && signal.shot_change_signal) {
     signal.time = cc->InputTimestamp();
     shot_signals_.push_back(signal);
   }
