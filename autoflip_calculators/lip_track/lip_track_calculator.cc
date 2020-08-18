@@ -38,6 +38,7 @@ namespace autoflip {
 constexpr char kInputVideo[] = "VIDEO";
 constexpr char kInputLandmark[] = "LANDMARKS";
 constexpr char kInputDetection[] = "DETECTIONS";
+constexpr char kInputShotBoundaries[] = "SHOT_BOUNDARIES";
 constexpr char kOutputROI[] = "DETECTIONS_SPEAKERS";
 
 // Output the shot boundary signal to change the camera quicily.
@@ -150,7 +151,7 @@ class LipTrackCalculator : public CalculatorBase {
   ::mediapipe::Status DrawBBox(const std::vector<Detection>& bboxes,
                const bool detected, const cv::Scalar& color, cv::Mat* viz_mat);  
   void Transmit(mediapipe::CalculatorContext* cc, bool is_speaker_change, int64 timestamp);
-  ::mediapipe::Status ProcessScene(::mediapipe::CalculatorContext* cc);
+  ::mediapipe::Status ProcessScene(bool is_end_of_scene, ::mediapipe::CalculatorContext* cc);
 
   // Calculator options.
   LipTrackCalculatorOptions options_;
@@ -172,12 +173,15 @@ class LipTrackCalculator : public CalculatorBase {
   std::vector<Detection> pre_dominate_speaker_detection_;
   // Last time a speaker shot was detected.
   Timestamp last_shot_timestamp_;
+  // Last time the sence is processed.
+  Timestamp last_sence_processed_timestamp_;
   // Dimensions of video frame.
   int frame_width_ = -1;
   int frame_height_ = -1;
   ImageFormat::Format frame_format_ = ImageFormat::UNKNOWN;
   // Store the input signals.
   std::vector<LipSignal> signal_buff_;
+  bool pre_stop_by_scene_change_;
 }; // end with inheritance
 
 REGISTER_CALCULATOR(LipTrackCalculator);
@@ -192,6 +196,9 @@ LipTrackCalculator::LipTrackCalculator() {}
   }
   if (cc->Inputs().HasTag(kInputDetection)) {
     cc->Inputs().Tag(kInputDetection).Set<std::vector<Detection>>();
+  }
+  if (cc->Inputs().HasTag(kInputShotBoundaries)) {
+    cc->Inputs().Tag(kInputShotBoundaries).Set<bool>();
   }
   cc->Outputs().Tag(kOutputROI).Set<std::vector<Detection>>();
   if (cc->Outputs().HasTag(kOutputShot)) {
@@ -208,43 +215,51 @@ LipTrackCalculator::LipTrackCalculator() {}
     mediapipe::CalculatorContext* cc) {
   options_ = cc->Options<LipTrackCalculatorOptions>();
   last_shot_timestamp_ = Timestamp(0);
+  last_sence_processed_timestamp_ = Timestamp(0);
   pre_dominate_speaker_id_ = -1;
+  pre_stop_by_scene_change_ = false;
 
   return ::mediapipe::OkStatus();
 }
 
 ::mediapipe::Status LipTrackCalculator::Process(
     mediapipe::CalculatorContext* cc) {
-  if (cc->Inputs().Tag(kInputVideo).Value().IsEmpty()) {
-    return ::mediapipe::UnknownErrorBuilder(MEDIAPIPE_LOC)
-           << "No VIDEO input at time " << cc->InputTimestamp().Seconds();
+  // Processes a scene when shot boundary or time period is larger than min_speaker_span.
+  bool is_end_of_scene = false;
+  if (cc->Inputs().HasTag(kInputShotBoundaries) &&
+      !cc->Inputs().Tag(kInputShotBoundaries).Value().IsEmpty()) {
+    is_end_of_scene = cc->Inputs().Tag(kInputShotBoundaries).Get<bool>();
   }
-  const auto& frame = cc->Inputs().Tag(kInputVideo).Get<ImageFrame>();
-  if (frame_width_ < 0) {
-    frame_width_ = frame.Width();
-    frame_height_ = frame.Height();
-    frame_format_ = frame.Format();
-  }
-  
-
-  LipSignal signal;
-  mediapipe::formats::MatView(&frame).copyTo(signal.frame);
-  signal.timestamp = cc->InputTimestamp().Value();
-
-  if (!cc->Inputs().Tag(kInputLandmark).Value().IsEmpty() && !cc->Inputs().Tag(kInputDetection).Value().IsEmpty()) {
-    signal.landmark_lists = 
-          cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
-    signal.detections =
-          cc->Inputs().Tag(kInputDetection).Get<std::vector<Detection>>(); 
-  }
-  signal_buff_.push_back(signal);
 
 
-  // Processes a scene when time period is larger than min_speaker_span.
   bool process_scene = !signal_buff_.empty() 
-    && (cc->InputTimestamp().Value() - signal_buff_[0].timestamp) >= options_.min_speaker_span();
+    && (cc->InputTimestamp().Value() - signal_buff_[0].timestamp) >= options_.min_speaker_span()
+    || (!signal_buff_.empty() && is_end_of_scene);
   if (process_scene) {
-    MP_RETURN_IF_ERROR(ProcessScene(cc));
+    MP_RETURN_IF_ERROR(ProcessScene(is_end_of_scene, cc));
+  }
+
+  if (!cc->Inputs().Tag(kInputVideo).Value().IsEmpty()) {
+    // return ::mediapipe::UnknownErrorBuilder(MEDIAPIPE_LOC)
+    //       << "No VIDEO input at time " << cc->InputTimestamp().Seconds();
+
+    const auto& frame = cc->Inputs().Tag(kInputVideo).Get<ImageFrame>();
+    if (frame_width_ < 0) {
+      frame_width_ = frame.Width();
+      frame_height_ = frame.Height();
+      frame_format_ = frame.Format();
+    }
+    LipSignal signal;
+    mediapipe::formats::MatView(&frame).copyTo(signal.frame);
+    signal.timestamp = cc->InputTimestamp().Value();
+
+    if (!cc->Inputs().Tag(kInputLandmark).Value().IsEmpty() && !cc->Inputs().Tag(kInputDetection).Value().IsEmpty()) {
+      signal.landmark_lists = 
+            cc->Inputs().Tag(kInputLandmark).Get<std::vector<NormalizedLandmarkList>>();
+      signal.detections =
+            cc->Inputs().Tag(kInputDetection).Get<std::vector<Detection>>(); 
+    }
+    signal_buff_.push_back(signal);
   }
 
   return ::mediapipe::OkStatus();
@@ -253,7 +268,7 @@ LipTrackCalculator::LipTrackCalculator() {}
 ::mediapipe::Status LipTrackCalculator::Close(
     ::mediapipe::CalculatorContext* cc) {
   if (!signal_buff_.empty()) {
-    MP_RETURN_IF_ERROR(ProcessScene(cc));
+    MP_RETURN_IF_ERROR(ProcessScene(/* is_end_of_scene = */ false, cc));
   }
   pre_dominate_speaker_detection_.clear();
   face_statistics_inner_.clear();
@@ -264,7 +279,7 @@ LipTrackCalculator::LipTrackCalculator() {}
 }
 
 ::mediapipe::Status LipTrackCalculator::ProcessScene(
-    ::mediapipe::CalculatorContext* cc) {
+    bool is_end_of_scene, ::mediapipe::CalculatorContext* cc) {
   // meta_faces: key is the meta face id, value is a vector
   // whose size equals to the current signal_buff_ size. The
   // i_th value in the vector is the face id in the i_th frame. 
@@ -381,8 +396,23 @@ LipTrackCalculator::LipTrackCalculator() {}
   if (dominate_speaker_id == -1) {
     std::vector<NormalizedLandmarkList> empty_landmarklist;
     // Output the shot boundary signal.
-    if (cc->Outputs().HasTag(kOutputShot) && options_.output_shot_boundary())
-      Transmit(cc, false, signal_buff_[0].timestamp);
+    if (cc->Outputs().HasTag(kOutputShot) && options_.output_shot_boundary()) {
+        if (is_end_of_scene) {
+          Transmit(cc, false, cc->InputTimestamp().Value());
+          last_sence_processed_timestamp_ = cc->InputTimestamp();
+          pre_stop_by_scene_change_ = true;
+        }
+        else {
+          if (pre_stop_by_scene_change_) {
+            Transmit(cc, false, last_sence_processed_timestamp_.Value());
+          }
+          else {
+            Transmit(cc, false, signal_buff_[0].timestamp);
+            last_sence_processed_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+          }
+          pre_stop_by_scene_change_ = false;
+        }
+    }
 
     for (int buff_position = 0; buff_position < signal_buff_.size(); ++buff_position) {
       auto empty_detection = ::absl::make_unique<std::vector<Detection>>();
@@ -395,6 +425,8 @@ LipTrackCalculator::LipTrackCalculator() {}
       
       cc->Outputs().Tag(kOutputROI).Add(empty_detection.release(), Timestamp(signal.timestamp));
     }
+
+
 
     //Update history
     pre_dominate_speaker_id_ = dominate_speaker_id;
@@ -425,17 +457,46 @@ LipTrackCalculator::LipTrackCalculator() {}
   if (cc->Outputs().HasTag(kOutputShot) && options_.output_shot_boundary()) {
     // Detect speakers in current frame and no speakers in previous frame.
     if (pre_dominate_speaker_id_ == -1) {
-      Transmit(cc, true, signal_buff_[0].timestamp);
-      last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+       if (is_end_of_scene) {
+          Transmit(cc, true, cc->InputTimestamp().Value());
+          last_shot_timestamp_ = cc->InputTimestamp();
+          last_sence_processed_timestamp_ = cc->InputTimestamp();
+          pre_stop_by_scene_change_ = true;
+        }
+        else {
+          if (pre_stop_by_scene_change_) {
+            Transmit(cc, true, last_sence_processed_timestamp_.Value());
+          }
+          else {
+            Transmit(cc, true, signal_buff_[0].timestamp);
+            last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+            last_sence_processed_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+          }
+          pre_stop_by_scene_change_ = false;
+        }
     }
     // Detect speakers in current frame and there are speakers in previous frame.
     else {
       if (!pre_dominate_speaker_detection_.empty()) {
         bool is_speaker_change = 
           (GetIOU(pre_dominate_speaker_detection_[0], dominate_speaker_detection[0]) > options_.iou_threshold()) ? false : true;
-        Transmit(cc, is_speaker_change, signal_buff_[0].timestamp);
-        if (is_speaker_change)
-          last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+        if (is_end_of_scene) {
+          Transmit(cc, true, cc->InputTimestamp().Value());
+          last_shot_timestamp_ = cc->InputTimestamp();
+          last_sence_processed_timestamp_ = cc->InputTimestamp();
+          pre_stop_by_scene_change_ = true;
+        }
+        else if (is_speaker_change) {
+          if (pre_stop_by_scene_change_) {
+            Transmit(cc, true, last_sence_processed_timestamp_.Value());
+          }
+          else {
+            Transmit(cc, true, signal_buff_[0].timestamp);
+            last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
+            last_sence_processed_timestamp_ =  Timestamp(signal_buff_[0].timestamp);
+          }
+          pre_stop_by_scene_change_ = false;
+        }
       }
     }
   }
@@ -584,8 +645,6 @@ void LipTrackCalculator::GetMeanAndVariance(const std::deque<float>& face_lip_st
         mean_outer = 0.0f, variance_outer = 0.0;
   GetMeanAndVariance(face_lip_statistics_inner, &mean_inner, &variance_inner);
   GetMeanAndVariance(face_lip_statistics_outer, &mean_outer, &variance_outer);
-  // LOG(ERROR) << "face_lip_statistics_inner: " << mean_inner << " " << variance_inner;
-  // LOG(ERROR) << "face_lip_statistics_outer: " << mean_outer << " " << variance_outer;
   
   if ((mean_inner >= options_.lip_inner_mean_threshold_big_mouth() // Inner lip
     && variance_inner >= options_.lip_inner_variance_threshold_big_mouth()
@@ -676,6 +735,7 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
 ::mediapipe::Status LipTrackCalculator::DrawBBox(
     const std::vector<Detection>& bboxes, const bool detected,
     const cv::Scalar& color, cv::Mat* viz_mat) {
+  float dx = 0.05, dy = 0.02;
   for(int i = 0; i < bboxes.size(); ++i) {
     auto& face = bboxes[i].location_data().relative_bounding_box();
     std::vector<cv::Point2f> vertices{cv::Point2f(face.xmin()*frame_width_, face.ymin()*frame_height_), 
@@ -687,7 +747,7 @@ cv::Point2f LipTrackCalculator::LandmarkToPoint(const int idx,
       cv::line(*viz_mat, vertices[j], vertices[(j+1)%4], color, 2);
     if (!detected){
       std::string label = cv::format("Face_%d ", i);
-      cv::putText(*viz_mat, label, vertices[0], cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
+      cv::putText(*viz_mat, label, cv::Point2f(vertices[0].x*(1+dx), vertices[0].y*(1+dy)), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.5, kWhite);
     }
   }
   return ::mediapipe::OkStatus();
