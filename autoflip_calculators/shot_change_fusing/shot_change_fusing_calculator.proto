@@ -29,7 +29,7 @@ message ShotChangeFusingCalculatorOptions {
 
   // If two shot change signals are within min_shot_span(in seconds),
   // they are considred as one siganl.
-  optional double min_shot_span = 2 [default = 2];
+  optional double min_shot_span = 2 [default = 0.0];
 }
 
 // Next tag: 3
