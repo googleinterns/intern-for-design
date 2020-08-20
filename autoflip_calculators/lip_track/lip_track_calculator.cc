@@ -398,7 +398,7 @@ LipTrackCalculator::LipTrackCalculator() {}
     // Output the shot boundary signal.
     if (cc->Outputs().HasTag(kOutputShot) && options_.output_shot_boundary()) {
         if (is_end_of_scene) {
-          Transmit(cc, false, cc->InputTimestamp().Value());
+          Transmit(cc, false, signal_buff_[0].timestamp);
           last_sence_processed_timestamp_ = cc->InputTimestamp();
           pre_stop_by_scene_change_ = true;
         }
@@ -408,8 +408,8 @@ LipTrackCalculator::LipTrackCalculator() {}
           }
           else {
             Transmit(cc, false, signal_buff_[0].timestamp);
-            last_sence_processed_timestamp_ = Timestamp(signal_buff_[0].timestamp);
           }
+          last_sence_processed_timestamp_ = Timestamp(signal_buff_.end()->timestamp);
           pre_stop_by_scene_change_ = false;
         }
     }
@@ -425,8 +425,6 @@ LipTrackCalculator::LipTrackCalculator() {}
       
       cc->Outputs().Tag(kOutputROI).Add(empty_detection.release(), Timestamp(signal.timestamp));
     }
-
-
 
     //Update history
     pre_dominate_speaker_id_ = dominate_speaker_id;
@@ -458,8 +456,8 @@ LipTrackCalculator::LipTrackCalculator() {}
     // Detect speakers in current frame and no speakers in previous frame.
     if (pre_dominate_speaker_id_ == -1) {
        if (is_end_of_scene) {
-          Transmit(cc, true, cc->InputTimestamp().Value());
-          last_shot_timestamp_ = cc->InputTimestamp();
+          Transmit(cc, true, signal_buff_[0].timestamp);
+          last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
           last_sence_processed_timestamp_ = cc->InputTimestamp();
           pre_stop_by_scene_change_ = true;
         }
@@ -470,8 +468,8 @@ LipTrackCalculator::LipTrackCalculator() {}
           else {
             Transmit(cc, true, signal_buff_[0].timestamp);
             last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
-            last_sence_processed_timestamp_ = Timestamp(signal_buff_[0].timestamp);
           }
+          last_sence_processed_timestamp_ = Timestamp(signal_buff_.end()->timestamp);
           pre_stop_by_scene_change_ = false;
         }
     }
@@ -481,8 +479,8 @@ LipTrackCalculator::LipTrackCalculator() {}
         bool is_speaker_change = 
           (GetIOU(pre_dominate_speaker_detection_[0], dominate_speaker_detection[0]) > options_.iou_threshold()) ? false : true;
         if (is_end_of_scene) {
-          Transmit(cc, true, cc->InputTimestamp().Value());
-          last_shot_timestamp_ = cc->InputTimestamp();
+          Transmit(cc, true, signal_buff_[0].timestamp);
+          last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
           last_sence_processed_timestamp_ = cc->InputTimestamp();
           pre_stop_by_scene_change_ = true;
         }
@@ -493,8 +491,8 @@ LipTrackCalculator::LipTrackCalculator() {}
           else {
             Transmit(cc, true, signal_buff_[0].timestamp);
             last_shot_timestamp_ = Timestamp(signal_buff_[0].timestamp);
-            last_sence_processed_timestamp_ =  Timestamp(signal_buff_[0].timestamp);
           }
+          last_sence_processed_timestamp_ = Timestamp(signal_buff_.end()->timestamp);
           pre_stop_by_scene_change_ = false;
         }
       }
