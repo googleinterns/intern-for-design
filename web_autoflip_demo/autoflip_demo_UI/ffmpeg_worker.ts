@@ -111,7 +111,12 @@ onmessage = function (e: MessageEvent): void {
         for (let i = 0; i < frames.length; i++) {
           frames[i]['frameId'] = i + frameIdStart;
         }
-        addSectionFramestoIndexDB(frames, e.data.videoId, e.data.workerId);
+        addSectionFramestoIndexDB(
+          frames,
+          e.data.videoId,
+          e.data.workerId,
+          e.data.user,
+        );
       });
   }
 
@@ -120,6 +125,7 @@ onmessage = function (e: MessageEvent): void {
     framesData: Frame[],
     videoId: number,
     workerId: number,
+    user: { inputWidth: number; inputHeight: number },
   ): void {
     const ctx = self as any;
     // Inizializes a transation on database 'decodeFrames'.
@@ -135,6 +141,7 @@ onmessage = function (e: MessageEvent): void {
         type: 'decodingDone',
         videoId: videoId,
         workerId: workerId,
+        user: user,
       });
     };
     transaction.onerror = function (): void {

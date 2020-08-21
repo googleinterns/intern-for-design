@@ -10,16 +10,14 @@ The project requires NodeJs, TypeScript and NPM installed.
 
 ## Build
 
-In folder web_autoflip_demo
+Inside folder of selected demo web_autoflip_demo/autoflip_demo_UI
 
 ```
-npm install
+cd  web_autoflip_demo/autoflip_demo_UI
 ```
 
-Inside the folder autoflip_demo_fixedWorkerPool, run the command to build the ts files.
-
 ```
-cd  web_autoflip_demo/autoflip_demo_fixedWorkerPool
+npm i
 ```
 
 ```

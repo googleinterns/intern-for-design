@@ -30,7 +30,7 @@ limitations under the License.
       <div
         class="card-child"
         id="card11"
-        style="width: 70%; border: 0px solid red;"
+        style="width: 70%; height: 530px; border: 0px solid red;"
       >
         <h1 style="text-align: center;">Upload a video to test!</h1>
         <div class="zone">
@@ -45,6 +45,7 @@ limitations under the License.
             <p>File size limit : 10 MB</p>
           </div>
         </div>
+
         <div style="text-align: center;">
           <button id="start-demo">
             Try our demo!
@@ -64,9 +65,14 @@ limitations under the License.
         <h3 style="margin-top: 80px;">Aspect Ratio</h3>
         <form>
           <label for="fname">Width:</label><br />
-          <input type="text" id="aspect-weight" name="aspectW" /><br />
+          <input
+            type="text"
+            id="aspect-weight"
+            name="aspectW"
+            value="1"
+          /><br />
           <label for="lname">Height:</label><br />
-          <input type="text" id="aspect-height" name="aspectH" />
+          <input type="text" id="aspect-height" name="aspectH" value="1" />
         </form>
 
         <h3 style="margin-top: 50px;">Crop Focus</h3>
@@ -83,304 +89,395 @@ limitations under the License.
       </div>
     </div>
 
-    <div class="card" id="card2" style="display: none; text-align: center;">
-      <h4
-        class="progress-label"
-        style="margin-left: 0rem; margin-bottom: 0.5rem;"
-      >
-        FFmpeg <span id="process-bar-text-ffmpeg">0%</span>
-      </h4>
-      <div id="myProgress">
-        <div id="myBar-ffmpeg"></div>
-      </div>
-
-      <h4
-        class="progress-label"
-        style="margin-left: 0rem; margin-bottom: 0.5rem;"
-      >
-        AutoFlip <span id="process-bar-text-autoflip">0%</span>
-      </h4>
-      <div id="myProgress">
-        <div id="myBar-autoflip"></div>
-      </div>
-    </div>
+    <div
+      class="card"
+      id="card2"
+      style="display: none; text-align: center;"
+    ></div>
     <div
       class="card"
       id="card3"
-      style="position: relative; height: 700px; display: none;"
+      style="
+        position: relative;
+        height: 600px;
+        display: none;
+        overflow: hidden;
+      "
     >
       <div
-        class="custom-video-area"
-        id="custom-popout-video"
-        style="position: relative;"
+        class="card-child"
+        id="card31"
+        style="width: 70%; border: 0px solid #4285f4; height: 550px;"
       >
-        <div
-          id="video-section"
-          style="
-            position: absolute;
-            margin-left: 0px;
-            width: 100%;
-            height: 700px;
-            overflow: hidden;
-          "
-        >
-          <video
-            id="video-display"
-            width="600px"
-            height="300px"
-            style="
-              position: absolute;
-              left: 0px;
-              top: 50px;
-              border: solid 5px black;
-            "
-            autoplay
-            loop
-          ></video>
-
-          <svg
-            id="mask-side"
-            style="
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              height: 500;
-              pointer-events: none;
-              display: none;
-            "
-          >
-            <rect
-              id="topBox"
-              x="0"
-              y="0"
-              width="1000"
-              height="50"
-              fill-opacity="50%"
-              fill="black"
-              stroke="red"
-              stroke-width="2"
-              style="pointer-events: fill;"
-            />
-
-            <rect
-              id="downBox"
-              x="0"
-              y="350"
-              width="1100"
-              height="50"
-              fill-opacity="50%"
-              fill="black"
-              stroke="red"
-              stroke-width="2"
-              style="pointer-events: fill;"
-            />
-
-            <rect
-              id="leftBox"
-              x="0"
-              y="50"
-              width="350"
-              height="300"
-              fill-opacity="50%"
-              fill="black"
-              stroke="red"
-              stroke-width="2"
-              style="pointer-events: fill;"
-            />
-            <rect
-              id="rightBox"
-              x="650"
-              y="50"
-              width="350"
-              height="300"
-              fill-opacity="50%"
-              fill="black"
-              stroke="red"
-              stroke-width="2"
-              style="pointer-events: fill;"
-            />
-          </svg>
-
-          <svg
-            id="mask-middle"
-            style="
-              position: absolute;
-              left: 350;
-              top: 50;
-              width: 100%;
-              height: 600;
-              pointer-events: none;
-              z-index: -1;
-              display: none;
-            "
-          >
-            <rect
-              id="middleBox"
-              x="0"
-              y="0"
-              width="400"
-              height="400"
-              fill-opacity="1"
-              fill="red"
-              stroke="red"
-              stroke-width="0"
-              style="pointer-events: fill;"
-            />
-          </svg>
-        </div>
-
-        <div style="position: relative; top: 450px; text-align: center;">
-          <div
-            id="main-video-play-controls"
-            style="
-              width: 619px;
-              border: 0px solid red;
-              margin: auto;
-              display: flex;
-              color: #687793;
-              align-items: center;
-              justify-content: space-between;
-            "
-          >
-            <div style="display: flex; color: #687793; align-items: center;">
-              <i
-                id="main-video-play"
-                class="material-icons"
-                style="cursor: pointer;"
-                >play_arrow</i
-              >
-              <i
-                id="main-video-pause"
-                class="material-icons"
-                style="cursor: pointer; display: none;"
-                >pause</i
-              >
-              <div style="display: flex; margin-left: 10px;">
-                <span id="main-video-time-current">0:00</span>
-                <span style="margin-left: 5px; margin-right: 5px;">/</span>
-                <span id="main-video-time-duration">0:00</span>
-                <span style="margin-left: 15px; margin-right: 5px;">
-                  frame:</span
+        <div id="progress" style="text-align: center;">
+          <div style="display: flex; margin-left: 8rem;">
+            <h4
+              class="progress-label"
+              style="padding-bottom: 0.3rem; margin: 0px; margin-left: 3px;"
+            >
+              FFmpeg
+            </h4>
+            <div id="myProgress" style="margin-left: 0.5rem;">
+              <div id="myBar-ffmpeg">
+                <span
+                  id="process-bar-text-ffmpeg"
+                  style="float: left; color: #fff;"
+                  >0%</span
                 >
-                <span id="main-video-frame">0</span>
               </div>
             </div>
-
-            <div style="display: flex; align-items: center;">
-              <i
-                id="main-video-volume-off"
-                class="material-icons"
-                style="cursor: pointer; display: none;"
-                >volume_off</i
-              >
-              <i
-                id="main-video-volume-down"
-                class="material-icons"
-                style="cursor: pointer;"
-                >volume_down</i
-              >
-              <svg
-                id="main-video-volume-control"
-                width="50px"
-                height="15px"
-                style="margin-right: 10px;"
-              >
-                <rect
-                  id="main-video-volume-bar"
-                  x="0px"
-                  y="5px"
-                  width="100%"
-                  height="4px"
-                  rx="2px"
-                  fill="#ddd"
-                ></rect>
-                <rect
-                  id="main-video-volume-offset"
-                  x="0px"
-                  y="5px"
-                  width="10px"
-                  height="4px"
-                  rx="2px"
-                  fill="gray"
-                ></rect>
-                <rect
-                  id="main-video-volume-event"
-                  x="0px"
-                  y="0px"
-                  width="100%"
-                  height="13px"
-                  opacity="0"
-                ></rect>
-              </svg>
+          </div>
+          <div style="display: flex; margin-left: 8rem;">
+            <h4
+              class="progress-label"
+              style="padding-bottom: 0.3rem; margin: 0px;"
+            >
+              AutoFlip
+            </h4>
+            <div id="myProgress" style="margin-left: 0.5rem;">
+              <div id="myBar-autoflip">
+                <span
+                  id="process-bar-text-autoflip"
+                  style="float: left; color: #fff;"
+                  >0%</span
+                >
+              </div>
             </div>
           </div>
-          <svg
-            id="main-video-play-slider"
-            width="619px"
-            height="30px"
-            display="block"
-            style="margin: auto;"
-          >
-            <rect
-              id="main-video-offset-bar"
-              x="6"
-              y="5"
-              width="607px"
-              height="4px"
-              rx="2px"
-              fill="#ddd"
-            ></rect>
-            <rect
-              id="main-video-offset-bar-progress"
-              x="6px"
-              y="5px"
-              width="0"
-              height="4px"
-              rx="2px"
-              fill="gray"
-            ></rect>
-            <rect
-              id="main-video-offset-bar-events"
-              x="6px"
-              y="0px"
-              width="613px"
-              height="13px"
-              opacity="0"
-            ></rect>
-            <circle
-              id="main-video-offset"
-              cx="6px"
-              cy="7px"
-              r="6px"
-              fill="#687793"
-              style="cursor: pointer;"
-            ></circle>
-          </svg>
-
-          <ul id="buttons" style="padding: 0px;">
-            <li class="crop-button" id="mask-button" style="cursor: pointer;">
-              Mask
-            </li>
-            <li class="crop-button" id="shot-button" style="cursor: pointer;">
-              Shot
-            </li>
-            <li
-              class="crop-button"
-              id="frame-button-next"
-              style="cursor: pointer;"
-            >
-              Frame next
-            </li>
-            <li
-              class="crop-button"
-              id="frame-button-previous"
-              style="cursor: pointer;"
-            >
-              Frame previous
-            </li>
-          </ul>
         </div>
+        <div
+          class="custom-video-area"
+          id="custom-popout-video"
+          style="position: relative; margin-top: 0rem;"
+        >
+          <div
+            id="video-section"
+            style="
+              position: absolute;
+              margin-left: 0px;
+              width: 1000px;
+              height: 400px;
+              overflow: hidden;
+            "
+          >
+            <video
+              id="video-display"
+              width="400px"
+              height="300px"
+              style="
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                border: solid 5px #fff;
+              "
+              autoplay
+              loop
+            ></video>
+
+            <svg
+              id="mask-side"
+              style="
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 500;
+                pointer-events: none;
+                display: none;
+              "
+            >
+              <rect
+                id="topBox"
+                x="0"
+                y="0"
+                width="1000"
+                height="50"
+                fill-opacity="50%"
+                fill="black"
+                stroke="red"
+                stroke-width="0"
+                style="pointer-events: fill;"
+              />
+
+              <rect
+                id="downBox"
+                x="0"
+                y="350"
+                width="1100"
+                height="50"
+                fill-opacity="50%"
+                fill="black"
+                stroke="red"
+                stroke-width="0"
+                style="pointer-events: fill;"
+              />
+
+              <rect
+                id="leftBox"
+                x="0"
+                y="5"
+                width="350"
+                height="300"
+                fill-opacity="50%"
+                fill="black"
+                stroke="red"
+                stroke-width="0"
+                style="pointer-events: fill;"
+              />
+              <rect
+                id="rightBox"
+                x="650"
+                y="5"
+                width="350"
+                height="300"
+                fill-opacity="50%"
+                fill="black"
+                stroke="red"
+                stroke-width="0"
+                style="pointer-events: fill;"
+              />
+              <rect
+                id="middleBoxFrame"
+                x="0"
+                y="0"
+                width="400"
+                height="400"
+                fill-opacity="1"
+                fill="transparent"
+                stroke="#4285F4"
+                stroke-width="5"
+                style="pointer-events: fill;"
+              />
+            </svg>
+
+            <svg
+              id="mask-middle"
+              style="
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 600;
+                pointer-events: none;
+                z-index: -1;
+                display: none;
+              "
+            >
+              <rect
+                id="middleBox"
+                x="0"
+                y="0"
+                width="400"
+                height="400"
+                fill-opacity="1"
+                fill="red"
+                stroke="red"
+                stroke-width="0"
+                style="pointer-events: fill;"
+              />
+            </svg>
+            <svg
+              id="detection-bounding-box"
+              style="
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 500;
+                pointer-events: none;
+              "
+            ></svg>
+          </div>
+
+          <div
+            style="
+              position: relative;
+              top: 350px;
+              text-align: center;
+              align-items: center;
+            "
+          >
+            <div
+              id="main-video-play-controls"
+              style="
+                width: 619px;
+                border: 0px solid red;
+                margin: auto;
+                display: flex;
+                color: #687793;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <div style="display: flex; color: #687793; align-items: center;">
+                <i
+                  id="main-video-play"
+                  class="material-icons"
+                  style="cursor: pointer;"
+                  >play_arrow</i
+                >
+                <i
+                  id="main-video-pause"
+                  class="material-icons"
+                  style="cursor: pointer; display: none;"
+                  >pause</i
+                >
+                <div style="display: flex; margin-left: 10px;">
+                  <span id="main-video-time-current">0:00</span>
+                  <span style="margin-left: 5px; margin-right: 5px;">/</span>
+                  <span id="main-video-time-duration">0:00</span>
+                  <span style="margin-left: 15px; margin-right: 5px;">
+                    frame:</span
+                  >
+                  <span id="main-video-frame">0</span>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center;">
+                <i
+                  id="main-video-volume-off"
+                  class="material-icons"
+                  style="cursor: pointer; display: none;"
+                  >volume_off</i
+                >
+                <i
+                  id="main-video-volume-down"
+                  class="material-icons"
+                  style="cursor: pointer;"
+                  >volume_down</i
+                >
+                <svg
+                  id="main-video-volume-control"
+                  width="50px"
+                  height="15px"
+                  style="margin-right: 10px;"
+                >
+                  <rect
+                    id="main-video-volume-bar"
+                    x="0px"
+                    y="5px"
+                    width="100%"
+                    height="4px"
+                    rx="2px"
+                    fill="#ddd"
+                  ></rect>
+                  <rect
+                    id="main-video-volume-offset"
+                    x="0px"
+                    y="5px"
+                    width="10px"
+                    height="4px"
+                    rx="2px"
+                    fill="gray"
+                  ></rect>
+                  <rect
+                    id="main-video-volume-event"
+                    x="0px"
+                    y="0px"
+                    width="100%"
+                    height="13px"
+                    opacity="0"
+                  ></rect>
+                </svg>
+              </div>
+            </div>
+            <svg
+              id="main-video-play-slider"
+              width="619px"
+              height="30px"
+              display="block"
+              style="margin: auto;"
+            >
+              <rect
+                id="main-video-offset-bar"
+                x="6"
+                y="5"
+                width="607px"
+                height="4px"
+                rx="2px"
+                fill="#ddd"
+              ></rect>
+              <rect
+                id="main-video-offset-bar-progress"
+                x="6px"
+                y="5px"
+                width="0"
+                height="4px"
+                rx="2px"
+                fill="gray"
+              ></rect>
+              <rect
+                id="main-video-offset-bar-events"
+                x="6px"
+                y="0px"
+                width="613px"
+                height="13px"
+                opacity="0"
+              ></rect>
+              <circle
+                id="main-video-offset"
+                cx="6px"
+                cy="7px"
+                r="6px"
+                fill="#687793"
+                style="cursor: pointer;"
+              ></circle>
+            </svg>
+
+            <ul id="buttons" style="padding: 0px;">
+              <li class="crop-button" id="mask-button" style="cursor: pointer;">
+                Mask
+              </li>
+              <li class="crop-button" id="shot-button" style="cursor: pointer;">
+                Shot
+              </li>
+              <li
+                class="crop-button"
+                id="frame-button-next"
+                style="cursor: pointer;"
+              >
+                Frame next
+              </li>
+              <li
+                class="crop-button"
+                id="frame-button-previous"
+                style="cursor: pointer;"
+              >
+                Frame previous
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div
+        class="card-child"
+        id="card32"
+        style="
+          width: 30%;
+          text-align: center;
+          border: 0px solid #4285f4;
+          margin-left: 0;
+          height: 550px;
+        "
+      >
+        <h3 style="margin-top: 80px;">Aspect Ratio</h3>
+        <form id="change-aspect-form">
+          <div>
+            <label for="fname">Width:</label><br />
+            <input type="text" id="change-aspect-width" name="fname" /><br />
+          </div>
+          <div>
+            <label for="lname">Height:</label><br />
+            <input
+              type="text"
+              id="change-aspect-height"
+              name="lname"
+            /><br /><br />
+          </div>
+          <input type="submit" value="Submit" style="cursor: pointer;" />
+        </form>
+        <h3 style="margin-top: 50px;">Crop Log</h3>
+        <div id="history" style="text-align: center;"></div>
       </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
