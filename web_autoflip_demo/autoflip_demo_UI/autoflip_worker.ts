@@ -117,7 +117,6 @@ let videoWidth: number = 0;
 let videoHeight: number = 0;
 let videoAspectWidth: number = 1;
 let videoAspectHeight: number = 1;
-let currentId: number = 0;
 let workerWindow: number = 0;
 let resultCropInfo: ExternalRenderingInformation[] = [];
 let resultShots: number[] = [];
@@ -156,7 +155,6 @@ onmessage = function (e: MessageEvent): void {
     console.log('restart autoflip');
     autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
     autoflipModule.cycleGraph();
-    resultCropInfo = [];
     timestampHead = Math.floor(signal.startId * (1 / 15) * 1000000);
   }
 
@@ -240,81 +238,52 @@ onmessage = function (e: MessageEvent): void {
         .then((buffer): void => {
           autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
           autoflipModule.changeBinaryGraph(buffer);
-
-          // Sets the aspect ratio setAspectRatio(1, 1) = '1:1'
-          // setAspectRatio(16, 11) = '16: 11'.
-          // autoflipModule.setAspectRatio(2, 1);
-          //autoflipModule.cycleGraph();
         });
     });
   }
-  if (signal.type === 'nextCropMiss') {
-    console.log(`wait 2 sec!`);
-    setTimeout(() => {
-      console.log(`finish 2 sec!`);
-      ctx.postMessage({
-        type: 'nextCrop',
-        videoId: signal.videoId,
-        startId: signal.startId,
-        user: signal.user,
-      });
-    }, 2000);
+
+  if (signal.type === 'changeAspectRatio') {
+    frameNumber = (1 + signal.videoId) * 15 * workerWindow - signal.startId;
   } else {
-    console.log(`frameNumber middle`, frameNumber);
-    if (signal.type === 'changeAspectRatio') {
-      frameNumber = (1 + signal.videoId) * 15 * workerWindow - signal.startId;
-    } else {
-      frameNumber = workerWindow * 15;
-    }
-    // Gets frameData from indexDB and process with Autoflip.
-    readFramesFromIndexedDB(signal.videoId, signal.startId, frameNumber).then(
-      (value: Frame[]): void => {
-        console.log(`PROMISE: promise ${signal.videoId} returned`);
-        let frameData: Frame[] = value;
-        handleFrames(frameData, signal);
-        if (signal.end === true) {
-          const b = autoflipModule.closeGraphInternal();
-          // This posts the analysis result back to main script.
-          ctx.postMessage({
-            type: 'finishedAnalysis',
-            cropWindows: resultCropInfo,
-            startId: signal.startId,
-            videoId: signal.videoId,
-            shots: resultShots,
-            faceDetections: resultFaces,
-            user: signal.user,
-          });
-        } else {
-          console.log(`call next crop!`);
-          const a = autoflipModule.runTillIdle();
-          if (resultCropInfo.length !== 0) {
-            // This posts the analysis result back to main script.
-            ctx.postMessage({
-              type: 'currentAnalysis',
-              cropWindows: resultCropInfo,
-              startId: signal.startId,
-              videoId: signal.videoId,
-              shots: resultShots,
-              faceDetections: resultFaces,
-              user: signal.user,
-            });
-            currentId += resultCropInfo.length;
-            resultCropInfo = [];
-            resultShots = [];
-            resultFaces = [];
-          } else {
-            console.log(`AUTOFLIP: runTillIdle is not avaiable`);
-            ctx.postMessage({
-              type: 'nextCrop',
-              videoId: signal.videoId + 1,
-              startId: signal.startId,
-              user: signal.user,
-            });
-          }
-        }
-      },
-    );
+    frameNumber = workerWindow * 15;
   }
+  // Gets frameData from indexDB and process with Autoflip.
+  readFramesFromIndexedDB(signal.videoId, signal.startId, frameNumber).then(
+    (value: Frame[]): void => {
+      console.log(`PROMISE: promise ${signal.videoId} returned`);
+      let frameData: Frame[] = value;
+      handleFrames(frameData, signal);
+      if (signal.end === true) {
+        // This closes the graph and posts the final
+        // analysis result back to main script.
+        const b = autoflipModule.closeGraphInternal();
+        ctx.postMessage({
+          type: 'finishedAnalysis',
+          cropWindows: resultCropInfo,
+          startId: signal.startId,
+          videoId: signal.videoId,
+          shots: resultShots,
+          faceDetections: resultFaces,
+          user: signal.user,
+        });
+      } else {
+        autoflipModule.runTillIdle();
+        // This posts the current analysis result back to main script.
+        ctx.postMessage({
+          type: 'currentAnalysis',
+          cropWindows: resultCropInfo,
+          startId: signal.startId,
+          videoId: signal.videoId,
+          shots: resultShots,
+          faceDetections: resultFaces,
+          user: signal.user,
+        });
+      }
+      resultCropInfo = [];
+      resultShots = [];
+      resultFaces = [];
+    },
+  );
 };
 
 /** Processes input frames with autoflip wasm. */

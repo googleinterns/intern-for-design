@@ -496,11 +496,12 @@ function startWorker(): void {
         }
         const expect =
           expected[`${userInput.inputHeight}&${userInput.inputWidth}`];
-        if (e.data.videoId === expect && autoflipFree === true) {
+        if (finished[expect] === true && autoflipFree === true) {
           autoflipWorker.postMessage({
             type: 'nextCropStore',
             videoId: expect,
             startTime: expect * processWindow,
+            startId: expect * 30,
             width: videoInfo.width,
             height: videoInfo.height,
             end: expect === size - 1,
@@ -530,32 +531,20 @@ function startWorker(): void {
     if (JSON.stringify(e.data.user) !== JSON.stringify(userInput)) {
       return;
     }
-    if (e.data.type === 'finishedAnalysis') {
-      console.log(
-        `MAIN: all frames received from worker ${e.data.workerId}`,
-        e.data,
-      );
-      // Applys the cropInfo to current display video.
-      console.log(`MAIN: render the recevied video crop windows`);
-      renderCroppedVideo(e.data);
-      console.log(`MAIN: render the recevied shots`);
-      renderShots(e.data);
-    } else {
-      console.log(`MAIN: part result received`, e.data);
-      if (e.data.cropWindows) {
-        // Applys the cropInfo to current display video.
-        console.log(`MAIN: render the recevied video crop windows`);
-        renderCroppedVideo(e.data);
-        console.log(`MAIN: render the recevied shots`);
-        renderShots(e.data);
-      }
+    console.log(`MAIN: analysis received from autoflip`, e.data);
+    // Applys the cropInfo to current display video.
+    console.log(`MAIN: render the recevied video crop windows`);
+    renderCroppedInfomation(e.data);
+    console.log(`MAIN: render the recevied shots`);
+    renderShots(e.data);
+
+    if (e.data.type !== 'finishedAnalysis') {
       console.log(`request next`);
       const expect =
         expected[`${userInput.inputHeight}&${userInput.inputWidth}`];
 
       console.log(`finished`, finished);
       if (finished[expect] === true) {
-        autoflipFree = true;
         autoflipWorker.postMessage({
           type: 'nextCropFind',
           videoId: expect,
@@ -564,18 +553,9 @@ function startWorker(): void {
           end: expect === size - 1,
           user: userInput,
         });
-        autoflipFree = false;
         expected[`${userInput.inputHeight}&${userInput.inputWidth}`]++;
       } else {
-        console.log(`wait exptect`);
-        autoflipWorker.postMessage({
-          type: 'nextCropMiss',
-          videoId: expect,
-          startTime: expect * processWindow,
-          startId: expect * 30,
-          end: expect === size - 1,
-          user: userInput,
-        });
+        autoflipFree = true;
       }
     }
   };
@@ -590,7 +570,7 @@ video.addEventListener('timeupdate', function (): void {
 });
 
 /** Displays cropped window of the video. */
-function renderCroppedVideo(videoCropInfo: CropInfo): void {
+function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   const user = videoCropInfo.user;
   const cropInfo: ExternalRenderingInformation[] = videoCropInfo.cropWindows;
   const faceDetections: faceDetectRegion[] = videoCropInfo.faceDetections;
@@ -602,7 +582,10 @@ function renderCroppedVideo(videoCropInfo: CropInfo): void {
     wrappedFunc,
   );
 
-  timeRender = <number>cropInfo[cropInfo.length - 1].timestampUS / 1000000;
+  if (cropInfo.length !== 0) {
+    timeRender = <number>cropInfo[cropInfo.length - 1].timestampUS / 1000000;
+  }
+
   for (let i = 0; i < cropInfo.length; i++) {
     cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`].push(
       cropInfo[i],
