@@ -105,6 +105,10 @@ interface faceDetectRegion {
    */
   faceRegion?: Rect | undefined;
 
+  signalType?: number;
+
+  score?: number;
+
   /** Timestamp in microseconds of the detected face bounding box. */
   timestamp?: number;
 }
@@ -120,9 +124,9 @@ let videoAspectHeight: number = 1;
 let workerWindow: number = 0;
 let resultCropInfo: ExternalRenderingInformation[] = [];
 let resultShots: number[] = [];
-let resultFaces: faceDetectRegion[] = [];
-let timestampHead = 0;
-let frameNumber = workerWindow * 15;
+let resultFaces: faceDetectRegion[][] = [];
+let timestampHead: number = 0;
+let frameNumber: number = workerWindow * 15;
 
 console.log(`frameNumber initailize`, frameNumber);
 
@@ -202,14 +206,19 @@ onmessage = function (e: MessageEvent): void {
           console.log(`detect crop window!`, cropInfo);
         },
       };
-      let faceDetect = {
-        onFace: (stream: string, proto: string, timestamp: number) => {
-          let faceInfo: faceDetectRegion = convertSeralizedFaceDetectionInfoToObj(
+      let featureDetect = {
+        onFeature: (stream: string, proto: string, timestamp: number) => {
+          let faceInfo: faceDetectRegion[] = convertSeralizedFaceDetectionInfoToObj(
             proto,
             timestamp,
           );
           resultFaces.push(faceInfo);
-          console.log(`detect face window!`, faceInfo);
+          console.log(`detect face window!`, faceInfo, timestamp);
+        },
+      };
+      let borderDetect = {
+        onBorder: (stream: string, proto: string, timestamp: number) => {
+          console.log(`detect border!`, proto, timestamp);
         },
       };
       const shotPacketListener: any = autoflipModule.PacketListener.implement(
@@ -218,8 +227,11 @@ onmessage = function (e: MessageEvent): void {
       const extPacketListener: any = autoflipModule.PacketListener.implement(
         externalRendering,
       );
-      const facePacketListener: any = autoflipModule.PacketListener.implement(
-        faceDetect,
+      const featurePacketListener: any = autoflipModule.PacketListener.implement(
+        featureDetect,
+      );
+      const borderPacketListener: any = autoflipModule.PacketListener.implement(
+        borderDetect,
       );
 
       autoflipModule.attachListener(
@@ -227,7 +239,8 @@ onmessage = function (e: MessageEvent): void {
         extPacketListener,
       );
       autoflipModule.attachListener('shot_change', shotPacketListener);
-      autoflipModule.attachListener('face_regions', facePacketListener);
+      autoflipModule.attachListener('salient_regions', featurePacketListener);
+      autoflipModule.attachListener('borders', borderPacketListener);
 
       fetch('autoflip_wasm/autoflip_web_graph.binarypb')
         .then(
@@ -254,9 +267,8 @@ onmessage = function (e: MessageEvent): void {
       let frameData: Frame[] = value;
       handleFrames(frameData, signal);
       if (signal.end === true) {
-        // This closes the graph and posts the final
-        // analysis result back to main script.
         const b = autoflipModule.closeGraphInternal();
+        // This posts the analysis result back to main script.
         ctx.postMessage({
           type: 'finishedAnalysis',
           cropWindows: resultCropInfo,
@@ -311,6 +323,9 @@ async function handleFrames(
         info.width,
         info.height,
       );
+      //autoflipModule.processShots(true);
+      //autoflipModule.processBorders('[]');
+
       // Do this to check if it saved correctly.
       if (!status) {
         console.error(status);
@@ -427,15 +442,35 @@ function convertSeralizedExternalRenderingInfoToObj(
 function convertSeralizedFaceDetectionInfoToObj(
   protoString: string,
   timestamp: number,
-): faceDetectRegion {
+): faceDetectRegion[] {
   console.log('proto', protoString);
   const protoArray: any[] = JSON.parse(protoString);
-  const faceDetectionInfo: faceDetectRegion = {};
-  if (protoArray ?? false) {
-    faceDetectionInfo.faceRegion = convertSeralizedRectToObj(
-      protoArray as any[],
-    );
+  let faceDetectionsInfo: faceDetectRegion[] = [];
+
+  if (protoArray.length === 0) {
+    const faceDetect: faceDetectRegion = {};
+    faceDetect.timestamp = timestamp;
+    faceDetectionsInfo.push(faceDetect);
   }
-  faceDetectionInfo.timestamp = timestamp;
-  return faceDetectionInfo;
+  if (protoArray[1] ?? false) {
+    console.log('the second half of the array', protoArray[1]);
+    for (let i = 0; i < protoArray[1].length; i++) {
+      const faceDetect: faceDetectRegion = {};
+      if (protoArray[1][i][1] ?? false) {
+        faceDetect.score = protoArray[1][i][1];
+      }
+      if (protoArray[1][i][5] ?? false) {
+        faceDetect.signalType = protoArray[1][i][5][0];
+      }
+      if (protoArray[1][i][7] ?? false) {
+        faceDetect.faceRegion = convertSeralizedRectToObj(
+          protoArray[1][i][7] as any[],
+        );
+      }
+      faceDetect.timestamp = timestamp;
+      console.log('face', faceDetect);
+      faceDetectionsInfo.push(faceDetect);
+    }
+  }
+  return faceDetectionsInfo;
 }

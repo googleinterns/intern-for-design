@@ -26,7 +26,7 @@ interface CropInfo {
   /** The sequence Id of the video. */
   videoId: number;
   user: { inputWidth: number; inputHeight: number };
-  faceDetections: faceDetectRegion[];
+  faceDetections: faceDetectRegion[][];
 }
 
 /** The interface defines information for a resizing dimension. */
@@ -86,6 +86,9 @@ const ffmpegWorkers: Worker[] = [
 ];
 
 const autoflipWorker: Worker = new Worker('autoflip_worker.js');
+const ffmpegWorkerAudio = new Worker('ffmpeg_worker_audio.js');
+const ffmpegWorkerCombine = new Worker('ffmpeg_worker_combine.js');
+
 const processWindow = 2;
 let videoBuffer: ArrayBuffer;
 let videoInfo: VideoInfo;
@@ -107,12 +110,14 @@ let rightWidth: number = 250;
 let topDownHeight: number = 50;
 let timestampHeadMs: number = 0;
 let isMasked: boolean = false;
-let curFaceDetection: Rect | undefined;
+let curFaceDetection: faceDetectRegion[];
 
 const video = <HTMLVideoElement>document.querySelector('#video-display');
+const videoPlay = <HTMLVideoElement>document.getElementById('video-play');
 const card1 = <HTMLDivElement>document.querySelector('#card1');
 const card2 = <HTMLDivElement>document.querySelector('#card2');
 const card3 = <HTMLDivElement>document.querySelector('#card3');
+const card4 = <HTMLDivElement>document.querySelector('#card4');
 const card31 = <HTMLDivElement>document.querySelector('#card31');
 const logHistory = <HTMLDivElement>document.querySelector('#history');
 const videoSection = <HTMLDivElement>document.querySelector('#video-section');
@@ -129,6 +134,11 @@ const maskMiddle = <SVGRectElement>document.querySelector('#mask-middle');
 const detectionBoundingBox = <SVGSVGElement>(
   document.querySelector('#detection-bounding-box')
 );
+const canvas: any = document.getElementById('canvas');
+const timerDisplay = <HTMLSpanElement>(
+  document.getElementById('safeTimerDisplay')
+);
+
 // Adds event to html element.
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
 const aspectWidth = <HTMLInputElement>document.querySelector('#aspect-weight');
@@ -375,6 +385,7 @@ function handleOnChange(event: Event): void {
 
     const videoURL = URL.createObjectURL(videoFile);
     video.src = videoURL;
+    videoPlay.src = videoURL;
     video.preload = 'metadata';
     video.onloadedmetadata = function (): void {
       videoInfo = {
@@ -441,6 +452,16 @@ function addHistoryButton(): void {
     .attr('id', `${userInput.inputWidth}-${userInput.inputHeight}`)
     .style('margin-left', '20px')
     .text(' 0%');
+
+  d3.select('#history')
+    .append('button')
+    .attr('type', 'button')
+    .attr('id', `download-${userInput.inputWidth}-${userInput.inputHeight}`)
+    .attr('disabled', 'disabled')
+    .style('display', 'block')
+    .style('margin', '3px auto')
+    .style('cursor', 'pointer')
+    .text(`download`);
 }
 
 /** Starts workers to process ffmpeg and autoflip */
@@ -557,6 +578,15 @@ function startWorker(): void {
       } else {
         autoflipFree = true;
       }
+    } else {
+      const downloadButton = <HTMLButtonElement>(
+        document.querySelector(
+          `#download-${userInput.inputWidth}-${userInput.inputHeight}`,
+        )
+      );
+
+      downloadButton.onclick = createDownload;
+      downloadButton.disabled = false;
     }
   };
 }
@@ -573,7 +603,7 @@ video.addEventListener('timeupdate', function (): void {
 function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   const user = videoCropInfo.user;
   const cropInfo: ExternalRenderingInformation[] = videoCropInfo.cropWindows;
-  const faceDetections: faceDetectRegion[] = videoCropInfo.faceDetections;
+  const faceDetections: faceDetectRegion[][] = videoCropInfo.faceDetections;
   if (cropInfo.length === 0 && faceDetections.length === 0) {
     return;
   }
@@ -581,11 +611,9 @@ function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   handlers[`${userInput.inputHeight}&${userInput.inputWidth}`].push(
     wrappedFunc,
   );
-
   if (cropInfo.length !== 0) {
     timeRender = <number>cropInfo[cropInfo.length - 1].timestampUS / 1000000;
   }
-
   for (let i = 0; i < cropInfo.length; i++) {
     cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`].push(
       cropInfo[i],
@@ -607,7 +635,7 @@ function renderCroppedInfomation(videoCropInfo: CropInfo): void {
 
 const timeUpdateFunction = function handleTimeUpdate(
   cropInfo: ExternalRenderingInformation[],
-  faceDetections: faceDetectRegion[],
+  faceDetections: faceDetectRegion[][],
 ): void {
   for (let i = 0; i < cropInfo.length; i++) {
     if (
@@ -624,10 +652,10 @@ const timeUpdateFunction = function handleTimeUpdate(
   for (let i = 0; i < faceDetections.length; i++) {
     if (
       video.currentTime >
-      <number>faceDetections[i].timestamp / 1000000 + timestampHeadMs
+      <number>faceDetections[i][0].timestamp / 1000000 + timestampHeadMs
     ) {
-      curFaceDetection = faceDetections[i].faceRegion;
-      renderFaceRegion(faceDetections[i].faceRegion);
+      curFaceDetection = faceDetections[i];
+      renderFaceRegion(faceDetections[i]);
     }
   }
 };
@@ -740,22 +768,39 @@ function renderShots(videoCropInfo: CropInfo): void {
 }
 
 /** Renders the face detection bounding boxes in video. */
-function renderFaceRegion(faceRect: Rect | undefined): void {
+function renderFaceRegion(faceDetections: faceDetectRegion[]): void {
   const svg = d3.select('#detection-bounding-box');
   svg.selectAll('*').remove();
 
-  if (faceRect === undefined) {
+  if (faceDetections === undefined) {
     return;
-  } else {
-    svg
-      .append('rect')
-      .attr('x', `${faceRect.x * video.width + video.offsetLeft}`)
-      .attr('y', `${faceRect.y * video.height + video.offsetTop}`)
-      .attr('width', `${faceRect.width * video.width}`)
-      .attr('height', `${faceRect.height * video.height}`)
-      .attr('stroke', 'red')
-      .attr('stroke-width', '2')
-      .attr('fill', 'transparent');
+  }
+  for (let i = 0; i < faceDetections.length; i++) {
+    const faceRect = faceDetections[i].faceRegion;
+    let color: string = 'red';
+    let width: string = '1';
+    if (faceRect !== undefined) {
+      if (faceDetections[i].signalType === 1) {
+        color = 'red';
+        width = '2';
+      } else if (faceDetections[i].signalType === 2) {
+        color = 'green';
+        width = '1';
+      } else {
+        color = 'yellow';
+        width = '0.5';
+      }
+      svg
+        .append('rect')
+        .attr('x', `${faceRect.x * video.width + video.offsetLeft}`)
+        .attr('y', `${faceRect.y * video.height + video.offsetTop}`)
+        .attr('width', `${faceRect.width * video.width}`)
+        .attr('height', `${faceRect.height * video.height}`)
+        .attr('stroke', color)
+        .attr('stroke-width', width)
+        //.attr('stroke-dasharray', '2')
+        .attr('fill', 'transparent');
+    }
   }
 }
 
@@ -805,8 +850,177 @@ function updateAutoflipBar(n: number): void {
     document.getElementById(`${userInput.inputWidth}-${userInput.inputHeight}`)
   );
 
-  const totalFrameNumber = Math.ceil(videoInfo.duration * 15);
+  const totalFrameNumber = Math.floor(videoInfo.duration * 15);
   processText.innerHTML = `${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   span.innerHTML = ` ${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   progressBar.style.width = `${(n / totalFrameNumber) * 100}%`;
+}
+
+function createDownload(): void {
+  // Puases the main preview video player to ensure recording quality
+  video.pause();
+  const canvas2D = canvas.getContext('2d') as CanvasRenderingContext2D;
+
+  const cropWindows: ExternalRenderingInformation[] =
+    cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`];
+  const render = cropWindows[0].renderToLocation as Rect;
+  canvas.width = render.width;
+  canvas.height = render.height;
+
+  let videoCropX = 0;
+  let videoCropY = 0;
+  let videoCropWidth = 1920;
+  let videoCropHeight = 1080;
+
+  videoPlay.play();
+  videoPlay.addEventListener('play', function (): void {
+    startRecording();
+    let $this = this;
+    (function loop() {
+      canvas2D.imageSmoothingEnabled = false;
+      if (!$this.paused && !$this.ended) {
+        canvas2D.drawImage(
+          $this,
+          videoCropX,
+          videoCropY,
+          videoCropWidth,
+          videoCropHeight,
+          0,
+          0,
+          render.width,
+          render.height,
+        );
+        stream.getVideoTracks()[0].requestFrame();
+        setTimeout(loop, 35);
+      } else {
+        stopRecording();
+      }
+    })();
+  });
+
+  let mediaRecorder: MediaRecorder;
+  let recordedBlobs: Blob[];
+  let output: ArrayBuffer;
+  let stream: any;
+
+  function handleDataAvailable(event: BlobEvent): void {
+    if (event.data && event.data.size > 0) {
+      console.log('data here');
+      recordedBlobs.push(event.data);
+    }
+  }
+
+  function handleStop(event: Event): void {
+    console.log('Recorder stopped: ', event);
+    const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
+    generateVideo(superBuffer);
+  }
+
+  function startRecording(): void {
+    videoPlay.play();
+    stream = canvas.captureStream(0);
+    console.log('Started stream capture from canvas element: ', stream);
+    const options = { mimeType: 'video/webm;codecs=h264' };
+    recordedBlobs = [];
+    mediaRecorder = new MediaRecorder(stream, options);
+    mediaRecorder.onstop = handleStop;
+    mediaRecorder.ondataavailable = handleDataAvailable;
+    mediaRecorder.start(); // collect 100ms of data
+    console.log('MediaRecorder started', mediaRecorder);
+    card3.style.display = 'none';
+    card4.style.display = 'block';
+    timer();
+  }
+
+  function stopRecording(): void {
+    mediaRecorder.stop();
+    console.log('Recorded Blobs: ', recordedBlobs);
+  }
+
+  function download(): void {
+    const blob = new Blob([output], { type: 'video/mp4' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'test.mp4';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+  }
+
+  function generateVideo(blob: Blob): void {
+    let audio: ArrayBuffer;
+    let muted: ArrayBuffer;
+
+    // Creates file reader to read muted video file as an array buffer
+    blob.arrayBuffer().then((buffer): void => {
+      muted = buffer;
+      console.log('AUDIO: Main thread post video to extrat audio');
+      console.log('AUDIO: the webm', muted);
+      ffmpegWorkerAudio.postMessage({
+        type: 'videoData',
+        video: videoBuffer,
+      });
+    });
+
+    ffmpegWorkerAudio.onmessage = function (e: MessageEvent): void {
+      console.log('MAIN: AUDIO: Main thread receive audio', e.data);
+      if (e.data.data.buffers.length !== 0) {
+        audio = e.data.data.buffers[0].data;
+      }
+      ffmpegWorkerCombine.postMessage({
+        type: 'combineVideo',
+        audioVideo: audio,
+        mutedVideo: muted,
+      });
+    };
+
+    ffmpegWorkerCombine.onmessage = function (e: MessageEvent): void {
+      output = e.data.data.buffers[0].data;
+      console.log('MAIN: Combine: Main thread receive combined video', output);
+      card3.style.display = 'flex';
+      card4.style.display = 'none';
+      download();
+    };
+  }
+
+  videoPlay.addEventListener('timeupdate', function (): void {
+    for (let i = 0; i < cropWindows.length; i++) {
+      let cropWindowForFrame = cropWindows[i].cropFromLocation as Rect;
+      if (videoPlay.currentTime > i * (1 / 15)) {
+        videoCropX = cropWindowForFrame.x;
+        videoCropY = cropWindowForFrame.y;
+        videoCropWidth = cropWindowForFrame.width;
+        videoCropHeight = cropWindowForFrame.height;
+      }
+    }
+  });
+}
+
+/** Converts the seconds to MM:SS string format. */
+function time_format(seconds: number): string {
+  const m: string =
+    Math.floor(seconds / 60) < 10
+      ? '0' + Math.floor(seconds / 60)
+      : '' + Math.floor(seconds / 60);
+  const s: string =
+    Math.floor(seconds - Number(m) * 60) < 10
+      ? '0' + Math.floor(seconds - Number(m) * 60)
+      : '' + Math.floor(seconds - Number(m) * 60);
+  return m + ':' + s;
+}
+
+function timer(): void {
+  let sec = 0;
+  const timer = setInterval(function (): void {
+    timerDisplay.innerHTML = time_format(sec);
+    sec++;
+    if (card4.style.display === 'none') {
+      clearInterval(timer);
+    }
+  }, 1000);
 }

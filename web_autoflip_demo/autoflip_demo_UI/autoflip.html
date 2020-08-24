@@ -480,7 +480,32 @@ limitations under the License.
         <div id="history" style="text-align: center;"></div>
       </div>
     </div>
+    <div class="card" id="card3" style="display: none;">
+      <video
+        id="video-recorded"
+        width="400px"
+        playsinline
+        loop
+        autoplay
+      ></video>
+      <div>
+        <button id="record">Start Recording</button>
+        <button id="play" disabled>Play</button>
+        <button id="download" disabled>Download</button>
+      </div>
+      <div>
+        <video id="video-play" width="400px" controls="false"></video>
+        <canvas id="canvas" style="background-color: blue;"></canvas>
+      </div>
+    </div>
+    <div class="card" id="card4" style="display: none;">
+      <h4>
+        waiting download processing......<span id="safeTimerDisplay">0.00</span>
+      </h4>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="render.js"></script>
     <script src="main.js"></script>

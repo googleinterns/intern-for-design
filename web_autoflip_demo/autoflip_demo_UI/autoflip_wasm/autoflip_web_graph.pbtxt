@@ -7,6 +7,9 @@ input_side_packet: "aspect_ratio"
 output_stream: "shot_change"
 output_stream: "external_rendering_per_frame"
 output_stream: "face_regions"
+output_stream: "video_frames_scaled_downsampled"
+output_stream: "salient_regions"
+output_stream: "borders"
 
 max_queue_size: 100
 
@@ -145,7 +148,6 @@ node {
   calculator: "SceneCroppingCalculator"
   input_side_packet: "EXTERNAL_ASPECT_RATIO:aspect_ratio"
   input_stream: "VIDEO_SIZE:video_size"
-  input_stream: "KEY_FRAMES:video_frames_scaled_downsampled"
   input_stream: "DETECTION_FEATURES:salient_regions"
   input_stream: "STATIC_FEATURES:borders"
   input_stream: "SHOT_BOUNDARIES:shot_change"
@@ -153,6 +155,8 @@ node {
   options: {
     [mediapipe.autoflip.SceneCroppingCalculatorOptions.ext]: {
       max_scene_size: 600
+      video_features_width: 640
+      video_features_height: 360
       key_frame_crop_options: {
         score_aggregation_type: CONSTANT
       }
