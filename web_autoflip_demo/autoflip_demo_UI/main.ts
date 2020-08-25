@@ -13,46 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/** The interface defines a cropping information object. */
-interface CropInfo {
-  /** The information type, like "finishedAnalysis", "sectionAnalysis". */
-  type: string;
-  /** The crop windows for processed frames. */
-  cropWindows: ExternalRenderingInformation[];
-  /** The shots positions for processed frames. */
-  shots: number[];
-  /** The first frame Id of the section. */
-  startId: number;
-  /** The sequence Id of the video. */
-  videoId: number;
-  user: { inputWidth: number; inputHeight: number };
-  faceDetections: faceDetectRegion[][];
-}
-
-/** The interface defines information for a resizing dimension. */
-interface Resize {
-  /** The width of the resized rectangle window. */
-  width: number;
-  /** The height of the resized rectangle window. */
-  height: number;
-  /** The x position (left) of the resized rectangle window.*/
-  x: number;
-  /** The y postion (top) of the resized rectangle window. */
-  y: number;
-  /** The resize ratio compared to original video dimension. */
-  ratio: number;
-}
-
-/** The interface defines a video information object. */
-interface VideoInfo {
-  /** The duration of the video. */
-  duration: number;
-  /** The width of the video dimension. */
-  width: number;
-  /** The height of the video dimension.*/
-  height: number;
-}
-
 // Open and sets the indexedDB properties.
 let db: IDBDatabase;
 let request = indexedDB.open('auto-flip', 1);
@@ -101,6 +61,7 @@ let frameIdTill: number = 0;
 let cyclesCropWindows: any = {};
 let handlers: any = {};
 let expected: any = {};
+let resultVideos: any = {};
 let autoflipFree: boolean = true;
 let countf: number = 0;
 let counta: number = 0;
@@ -111,6 +72,7 @@ let topDownHeight: number = 50;
 let timestampHeadMs: number = 0;
 let isMasked: boolean = false;
 let curFaceDetection: faceDetectRegion[];
+let audio: ArrayBuffer;
 
 const video = <HTMLVideoElement>document.querySelector('#video-display');
 const videoPlay = <HTMLVideoElement>document.getElementById('video-play');
@@ -420,14 +382,14 @@ function handleOnChange(event: Event): void {
             workerId: i,
           });
         }
+        getAudioOfVideo();
         resolve('success');
       };
     };
   });
   promise.then((): void => {
-    // Makes card1 invisiable, card2 and card3 display.
+    // Makes card1 invisiable, card3 display.
     card1.style.display = 'none';
-    //card2.style.display = 'block';
     card3.style.display = 'flex';
     putMiddle();
     startWorker();
@@ -585,7 +547,13 @@ function startWorker(): void {
         )
       );
 
-      downloadButton.onclick = createDownload;
+      const wrapFunctionCreateDownload = createDownload.bind(
+        e,
+        userInput.inputWidth,
+        userInput.inputHeight,
+      );
+      downloadButton.onclick = wrapFunctionCreateDownload;
+
       downloadButton.disabled = false;
     }
   };
@@ -804,24 +772,6 @@ function renderFaceRegion(faceDetections: faceDetectRegion[]): void {
   }
 }
 
-/** Remains the changed crop windows */
-/*
-function remainChanged(cropInfo, startId) {
-  let remained = [];
-  let pre = JSON.stringify(cropInfo[0]);
-  cropInfo[0]['time'] = Number(((1 / 15) * startId).toFixed(3));
-  remained.push(cropInfo[0]);
-  for (let i = 1; i < cropInfo.length; i++) {
-    if (pre !== JSON.stringify(cropInfo[i])) {
-      pre = JSON.stringify(cropInfo[i]);
-      cropInfo[i]['time'] = Number(((1 / 15) * (i + startId)).toFixed(3));
-      remained.push(cropInfo[i]);
-    }
-  }
-  return remained;
-}
-*/
-
 /**
  * Updates the ffmpeg progress bar according to count of decoded video sections.
  * @param n
@@ -845,24 +795,22 @@ function updateAutoflipBar(n: number): void {
   const processText = <HTMLSpanElement>(
     document.getElementById('process-bar-text-autoflip')
   );
-
   const span = <HTMLSpanElement>(
     document.getElementById(`${userInput.inputWidth}-${userInput.inputHeight}`)
   );
-
   const totalFrameNumber = Math.floor(videoInfo.duration * 15);
   processText.innerHTML = `${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   span.innerHTML = ` ${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   progressBar.style.width = `${(n / totalFrameNumber) * 100}%`;
 }
 
-function createDownload(): void {
+function createDownload(inputWidth: number, inputHeight: number): void {
   // Puases the main preview video player to ensure recording quality
   video.pause();
   const canvas2D = canvas.getContext('2d') as CanvasRenderingContext2D;
 
   const cropWindows: ExternalRenderingInformation[] =
-    cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`];
+    cyclesCropWindows[`${inputHeight}&${inputWidth}`];
   const render = cropWindows[0].renderToLocation as Rect;
   canvas.width = render.width;
   canvas.height = render.height;
@@ -871,37 +819,36 @@ function createDownload(): void {
   let videoCropY = 0;
   let videoCropWidth = 1920;
   let videoCropHeight = 1080;
-
-  videoPlay.play();
-  videoPlay.addEventListener('play', function (): void {
-    startRecording();
-    let $this = this;
-    (function loop() {
-      canvas2D.imageSmoothingEnabled = false;
-      if (!$this.paused && !$this.ended) {
-        canvas2D.drawImage(
-          $this,
-          videoCropX,
-          videoCropY,
-          videoCropWidth,
-          videoCropHeight,
-          0,
-          0,
-          render.width,
-          render.height,
-        );
-        stream.getVideoTracks()[0].requestFrame();
-        setTimeout(loop, 35);
-      } else {
-        stopRecording();
-      }
-    })();
-  });
-
   let mediaRecorder: MediaRecorder;
   let recordedBlobs: Blob[];
   let output: ArrayBuffer;
   let stream: any;
+
+  video.currentTime = 0;
+  videoPlay.play();
+  startRecording();
+  loop();
+
+  function loop() {
+    canvas2D.imageSmoothingEnabled = false;
+    if (!videoPlay.paused && !videoPlay.ended) {
+      canvas2D.drawImage(
+        videoPlay,
+        videoCropX,
+        videoCropY,
+        videoCropWidth,
+        videoCropHeight,
+        0,
+        0,
+        render.width,
+        render.height,
+      );
+      stream.getVideoTracks()[0].requestFrame();
+      setTimeout(loop, 35);
+    } else {
+      stopRecording();
+    }
+  }
 
   function handleDataAvailable(event: BlobEvent): void {
     if (event.data && event.data.size > 0) {
@@ -937,8 +884,10 @@ function createDownload(): void {
     console.log('Recorded Blobs: ', recordedBlobs);
   }
 
-  function download(): void {
-    const blob = new Blob([output], { type: 'video/mp4' });
+  function download(inputWidth: number, inputHeight: number): void {
+    const blob = new Blob([resultVideos[`${inputWidth}&${inputHeight}`]], {
+      type: 'video/mp4',
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -953,7 +902,6 @@ function createDownload(): void {
   }
 
   function generateVideo(blob: Blob): void {
-    let audio: ArrayBuffer;
     let muted: ArrayBuffer;
 
     // Creates file reader to read muted video file as an array buffer
@@ -961,30 +909,26 @@ function createDownload(): void {
       muted = buffer;
       console.log('AUDIO: Main thread post video to extrat audio');
       console.log('AUDIO: the webm', muted);
-      ffmpegWorkerAudio.postMessage({
-        type: 'videoData',
-        video: videoBuffer,
-      });
-    });
-
-    ffmpegWorkerAudio.onmessage = function (e: MessageEvent): void {
-      console.log('MAIN: AUDIO: Main thread receive audio', e.data);
-      if (e.data.data.buffers.length !== 0) {
-        audio = e.data.data.buffers[0].data;
-      }
       ffmpegWorkerCombine.postMessage({
         type: 'combineVideo',
         audioVideo: audio,
         mutedVideo: muted,
       });
-    };
+    });
 
     ffmpegWorkerCombine.onmessage = function (e: MessageEvent): void {
       output = e.data.data.buffers[0].data;
       console.log('MAIN: Combine: Main thread receive combined video', output);
       card3.style.display = 'flex';
       card4.style.display = 'none';
-      download();
+      resultVideos[`${inputWidth}&${inputHeight}`] = output;
+      download(inputWidth, inputHeight);
+      const downloadButton = <HTMLButtonElement>(
+        document.querySelector(`#download-${inputWidth}-${inputHeight}`)
+      );
+      downloadButton.onclick = null;
+      const wrapFunctionDownload = download.bind(e, inputWidth, inputHeight);
+      downloadButton.addEventListener('click', wrapFunctionDownload);
     };
   }
 
@@ -1023,4 +967,20 @@ function timer(): void {
       clearInterval(timer);
     }
   }, 1000);
+}
+
+/** Extract the audio from the input video */
+function getAudioOfVideo() {
+  console.log('AUDIO: Main thread post video to extrat audio');
+  ffmpegWorkerAudio.postMessage({
+    type: 'videoData',
+    video: videoBuffer,
+  });
+
+  ffmpegWorkerAudio.onmessage = function (e: MessageEvent): void {
+    console.log('AUDIO: Main thread receive audio', e.data);
+    if (e.data.data.buffers.length !== 0) {
+      audio = e.data.data.buffers[0].data;
+    }
+  };
 }

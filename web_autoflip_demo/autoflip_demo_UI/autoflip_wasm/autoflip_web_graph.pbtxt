@@ -4,12 +4,20 @@ input_stream: "input_yuv_raw_data"
 input_stream: "video_header"
 input_stream: "video_size"
 input_side_packet: "aspect_ratio"
+
+input_stream: "shot_change_external"
+input_stream: "salient_regions_external"
+input_stream: "borders_external"
+
+output_stream: "shot_change_internal"
+output_stream: "salient_regions_internal"
+output_stream: "borders_internal"
+
 output_stream: "shot_change"
-output_stream: "external_rendering_per_frame"
-output_stream: "face_regions"
-output_stream: "video_frames_scaled_downsampled"
 output_stream: "salient_regions"
 output_stream: "borders"
+
+output_stream: "external_rendering_per_frame"
 
 max_queue_size: 100
 
@@ -52,14 +60,14 @@ node {
 node {
   calculator: "BorderDetectionCalculator"
   input_stream: "VIDEO:video_frames_scaled"
-  output_stream: "DETECTED_BORDERS:borders"
+  output_stream: "DETECTED_BORDERS:borders_internal"
 }
 
 # DETECTION: find shot/scene boundaries on the full frame rate stream.
 node {
   calculator: "ShotBoundaryCalculator"
   input_stream: "VIDEO:video_frames_scaled"
-  output_stream: "IS_SHOT_CHANGE:shot_change"
+  output_stream: "IS_SHOT_CHANGE:shot_change_internal"
   options {
     [mediapipe.autoflip.ShotBoundaryCalculatorOptions.ext] {
       min_shot_span: 0.2
@@ -92,9 +100,9 @@ node {
 # SIGNAL FUSION: Combine detections (with weights) on each frame
 node {
   calculator: "SignalFusingCalculator"
-  input_stream: "shot_change"
+  input_stream: "shot_change_internal"
   input_stream: "face_regions"
-  output_stream: "salient_regions"
+  output_stream: "salient_regions_internal"
   options {
     [mediapipe.autoflip.SignalFusingCalculatorOptions.ext] {
       signal_settings {
@@ -140,6 +148,39 @@ node {
         is_required: false
       }
     }
+  }
+}
+
+# MERGING: merge the caculator produced packets to related input stream.
+node {
+  calculator: "MergeCalculator"
+  input_stream: "shot_change_external"
+  input_stream: "shot_change_internal"
+  output_stream: "shot_change"
+  input_stream_handler {
+    input_stream_handler: "ImmediateInputStreamHandler"
+  }
+}
+
+# MERGING: merge the caculator produced packets to related input stream.
+node {
+  calculator: "MergeCalculator"
+  input_stream: "salient_regions_external"
+  input_stream: "salient_regions_internal"
+  output_stream: "salient_regions"
+  input_stream_handler {
+    input_stream_handler: "ImmediateInputStreamHandler"
+  }
+}
+
+# MERGING: merge the caculator produced packets to related input stream.
+node {
+  calculator: "MergeCalculator"
+  input_stream: "borders_external"
+  input_stream: "borders_internal"
+  output_stream: "borders"
+  input_stream_handler {
+    input_stream_handler: "ImmediateInputStreamHandler"
   }
 }
 
