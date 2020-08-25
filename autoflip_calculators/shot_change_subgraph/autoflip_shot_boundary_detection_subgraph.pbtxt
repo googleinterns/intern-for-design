@@ -1,0 +1,112 @@
+# MediaPipe graph that performs shot boundary detection with TensorFlow on CPU
+# based on TransNetV2 https://github.com/soCzech/TransNetV2.
+
+input_stream: "VIDEO:input_video"
+output_stream: "IS_SHOT_CHANGE:shot_change"
+
+
+# Transforms the input image on CPU to a 48x27 image. To scale the image, by
+# default it uses the STRETCH scale mode that maps the entire input image to the
+# entire transformed image. As a result, image aspect ratio may be changed and
+# objects in the image may be deformed (stretched or squeezed), but the object
+# detection model used in this graph is agnostic to that deformation.
+node: {
+  calculator: "ImageTransformationCalculator"
+  input_stream: "IMAGE:input_video"
+  output_stream: "IMAGE:transformed_input_video"
+  options: {
+    [mediapipe.ImageTransformationCalculatorOptions.ext] {
+      output_width: 48
+      output_height: 27
+    }
+  }
+}
+
+# Converts the input image into an image tensor as a tensorflow::Tensor.
+node {
+  calculator: "ImageFrameToTensorCalculator"
+  input_stream: "transformed_input_video"
+  output_stream: "image_tensor"
+  options: {
+    [mediapipe.ImageFrameToTensorCalculatorOptions.ext] {
+      data_type: DT_FLOAT
+      mean:0.0 
+      stddev:1.0
+    }
+  }
+}
+
+node {
+  calculator: "PadLappedTensorBufferCalculator"
+  input_stream: "image_tensor"
+  output_stream: "lapped_feature_tensor"
+  output_stream: "time_stamp"
+  options {
+    [mediapipe.PadLappedTensorBufferCalculatorOptions.ext] {
+      buffer_size: 100
+      overlap: 50
+      add_batch_dim_to_tensors: true
+      timestamp_offset: 25
+    }
+  }
+}
+
+# Generates a single side packet containing a TensorFlow session from a saved
+# model. The directory path that contains the saved model is specified in the
+# saved_model_path option, and the name of the saved model file has to be
+# "saved_model.pb".
+node {
+  calculator: "TensorFlowSessionFromSavedModelCalculator"
+  output_side_packet: "SESSION:shot_boundary_detection_session"
+  node_options: {
+    [type.googleapis.com/mediapipe.TensorFlowSessionFromSavedModelCalculatorOptions]: {
+      saved_model_path: "/mediapipe/models/shot_boundary_detection_saved_model"
+    }
+  }
+}
+
+# Runs a TensorFlow session (specified as an input side packet) that takes an
+# image tensor and outputs multiple tensors that describe the objects detected
+# in the image. The batch_size option is set to 1 to disable batching entirely.
+# Note that the particular TensorFlow model used in this session handles image
+# scaling internally before the object-detection inference, and therefore no
+# additional calculator for image transformation is needed in this MediaPipe
+# graph.
+node: {
+  calculator: "TensorFlowInferenceCalculator"
+  input_side_packet: "SESSION:shot_boundary_detection_session"
+  input_stream: "INPUT_1:lapped_feature_tensor"
+  output_stream: "OUTPUT_1:prediction_tensor_single_frame"
+  output_stream: "OUTPUT_2:prediction_tensor_all_frame"
+  node_options: {
+    [type.googleapis.com/mediapipe.TensorFlowInferenceCalculatorOptions]: {
+      batch_size: 1
+    }
+  }
+}
+
+node: {
+  calculator: "TensorSqueezeDimensionsCalculator"
+  input_stream: "prediction_tensor_single_frame"
+  output_stream: "starburst_squeezed"
+  node_options: {
+    [type.googleapis.com/mediapipe.TensorSqueezeDimensionsCalculatorOptions]: {
+      squeeze_all_single_dims: true
+    }
+  }
+}
+
+# Decodes the detection tensors from the TensorFlow model into a vector of
+# detections. Each detection describes a detected object.
+node {
+  calculator: "TensorToVectorFloatCalculator"
+  input_stream: "starburst_squeezed"
+  output_stream: "prediction_vector"
+}
+
+node {
+  calculator: "ShotBoundaryDecoderCalculator"
+  input_stream: "PREDICTION:prediction_vector"
+  input_stream: "TIME:time_stamp"
+  output_stream: "IS_SHOT_CHANGE:shot_change"
+}
