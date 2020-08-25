@@ -47,20 +47,10 @@ node {
   output_stream: "DETECTED_BORDERS:borders"
 }
 
-# DETECTION: find shot/scene boundaries on the full frame rate stream.
 node {
-  calculator: "ShotBoundaryCalculator"
-  input_stream: "VIDEO:video_frames_scaled"
+  calculator: "AutoFlipShotBoundaryDetectionSubgraph"
+  input_stream: "VIDEO:video_raw"
   output_stream: "IS_SHOT_CHANGE:shot_change"
-  options {
-    [mediapipe.autoflip.ShotBoundaryCalculatorOptions.ext] {
-      min_shot_span: 0.2
-      min_motion: 0.3
-      window_size: 15
-      min_shot_measure: 10
-      min_motion_with_shot_measure: 0.05
-    }
-  }
 }
 
 # DETECTION: find texts on the down sampled stream
@@ -71,8 +61,8 @@ node {
   options {
     [mediapipe.autoflip.TextDetectionCalculatorOptions.ext] {
       model_path: "/usr/local/google/home/zzhencchen/mediapipe/mediapipe/models/frozen_east_text_detection.pb"
-      east_width: 320
-      east_height: 320
+      east_width: 160
+      east_height: 160
     }
   }
 }
@@ -81,6 +71,7 @@ node {
 node {
   calculator: "AutoFlipActiveSpeakerDetectionSubgraph"
   input_stream: "VIDEO:video_frames_scaled_downsampled"
+  input_stream: "SHOT_BOUNDARIES:shot_change"
   output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
   output_stream: "IS_SPEAKER_CHANGE:speaker_change"
   output_stream: "DETECTIONS:face_detections"
@@ -200,12 +191,12 @@ node {
    options:{
      [mediapipe.autoflip.ShotChangeFusingCalculatorOptions.ext]:{
        shot_settings{
-        id: 0
-         priority: 0
+         id: 0
+         priority: 1
        }
        shot_settings{
-        id: 1
-         priority: 1
+         id: 1
+         priority: 0
        }
      }
    }
