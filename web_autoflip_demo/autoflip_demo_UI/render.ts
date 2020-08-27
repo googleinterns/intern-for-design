@@ -249,20 +249,3 @@ $('.custom-video-area').each(function () {
   });
 });
 
-/** Centers the section of card3 with all the SVG elements. */
-$(window).resize((): void => {
-  const card3 = <HTMLDivElement>document.querySelector('#card3');
-  const videoSection = <HTMLDivElement>document.querySelector('#video-section');
-  const topBox = <SVGRectElement>document.querySelector('#topBox');
-  const videoPerview = <HTMLVideoElement>(
-    document.querySelector('#video-display')
-  );
-  let left = (card3.offsetWidth - topBox.getBoundingClientRect().width) / 2;
-  if (topBox.getBoundingClientRect().width === 0) {
-    left = (card3.offsetWidth - videoPerview.offsetWidth) / 2;
-  }
-  if (left < 0) {
-    left = 0;
-  }
-  videoSection.style.marginLeft = `${left}px`;
-});

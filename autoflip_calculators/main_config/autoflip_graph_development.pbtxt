@@ -185,11 +185,31 @@ node {
         type { standard: SPEAKER }
         min_score: 0.85
         max_score: 0.9
-        is_required: false
+        is_required: true
       }
     }
   }
 }
+
+# SHOT CHANGE FUSION: Combine shot change on each frame
+ node {
+   calculator: "ShotChangeFusingCalculator"
+   input_stream: "shot_change"
+   input_stream: "speaker_change"
+   output_stream: "fusing_change"
+   options:{
+     [mediapipe.autoflip.ShotChangeFusingCalculatorOptions.ext]:{
+       shot_settings{
+         id: 0
+         priority: 0
+       }
+       shot_settings{
+         id: 1
+         priority: 1
+       }
+     }
+   }
+ }
 
 # CROPPING: make decisions about how to crop each frame.
 node {
@@ -199,8 +219,7 @@ node {
   input_stream: "KEY_FRAMES:video_frames_scaled_downsampled"
   input_stream: "DETECTION_FEATURES:salient_regions"
   input_stream: "STATIC_FEATURES:borders"
-  input_stream: "SHOT_BOUNDARIES:shot_change"
-  input_stream: "SPEAKER_BOUNDARIES:speaker_change"
+  input_stream: "SHOT_BOUNDARIES:fusing_change"
   output_stream: "CROPPED_FRAMES:cropped_frames"
   output_stream: "KEY_FRAME_CROP_REGION_VIZ_FRAMES:key_frame_crop_viz_frames"
   output_stream: "SALIENT_POINT_FRAME_VIZ_FRAMES:salient_point_viz_frames"

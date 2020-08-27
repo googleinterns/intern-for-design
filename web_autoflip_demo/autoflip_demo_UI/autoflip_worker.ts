@@ -20,11 +20,13 @@ limitations under the License.
 interface Signal {
   /**
    * The type of the message to indicate the state of the
-   * section to crop, for exampel "firstCrop"
+   * section to crop, for example "firstCrop"
    */
   type: string;
   /** The video section sequence number, start from 0 */
   videoId: number;
+  /** The start frameId of the video section */
+  startId: number;
   /** The start timestamp of the video section */
   startTime: number;
   /** The width dimention of the video */
@@ -94,6 +96,19 @@ interface ExternalRenderingInformation {
   targetHeight?: number;
 }
 
+/**
+ * Self-contained message that provides information for a face bounding box
+ */
+interface faceDetectRegion {
+  /**
+   * Face bounding box for detecting full face.
+   */
+  faceRegion?: Rect | undefined;
+
+  /** Timestamp in microseconds of the detected face bounding box. */
+  timestamp?: number;
+}
+
 importScripts('autoflip_wasm/autoflip_live_bin.js');
 importScripts('autoflip_wasm/autoflip_live_loader.js');
 
@@ -102,10 +117,14 @@ let videoWidth: number = 0;
 let videoHeight: number = 0;
 let videoAspectWidth: number = 1;
 let videoAspectHeight: number = 1;
-let currentId: number = 0;
 let workerWindow: number = 0;
 let resultCropInfo: ExternalRenderingInformation[] = [];
 let resultShots: number[] = [];
+let resultFaces: faceDetectRegion[] = [];
+let timestampHead = 0;
+let frameNumber = workerWindow * 15;
+
+console.log(`frameNumber initailize`, frameNumber);
 
 // Gets the indexDB database to fetch the decoded frame data
 let dbAutoflip: IDBDatabase;
@@ -129,6 +148,23 @@ const demo = (this as any).DemoModule(Module);
 onmessage = function (e: MessageEvent): void {
   let signal: Signal = e.data;
   console.log(`AUTOFLIP: video(${signal.videoId}) start to crop`, signal);
+
+  if (signal.type === 'changeAspectRatio') {
+    videoAspectWidth = signal.user.inputWidth;
+    videoAspectHeight = signal.user.inputHeight;
+    console.log('restart autoflip');
+    autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
+    autoflipModule.cycleGraph();
+    timestampHead = Math.floor(signal.startId * (1 / 15) * 1000000);
+  }
+
+  if (
+    signal.user.inputWidth !== videoAspectWidth ||
+    signal.user.inputHeight !== videoAspectHeight
+  ) {
+    return;
+  }
+
   if (signal.type === 'firstCrop') {
     videoWidth = signal.width;
     videoHeight = signal.height;
@@ -137,21 +173,43 @@ onmessage = function (e: MessageEvent): void {
       signal.user.inputWidth === 0 ? 1 : signal.user.inputWidth;
     videoAspectHeight =
       signal.user.inputHeight === 0 ? 1 : signal.user.inputHeight;
-
-    console.log(`user input`, signal.user.inputWidth, signal.user.inputHeight);
+    frameNumber = workerWindow * 15;
+    console.log(
+      `user input Autoflip`,
+      signal.user.inputWidth,
+      signal.user.inputHeight,
+    );
     demo.then((module: any): void => {
       autoflipModule = module;
       // These are the listeners that will recieve the changes from autoflip.
       // They are called whenever there is a change.
       let shotChange = {
         onShot: (stream: string, change: boolean, timestampMs: number) => {
-          resultShots.push(timestampMs);
+          const timestampForVideo = timestampMs + timestampHead;
+          resultShots.push(timestampForVideo);
+          console.log(
+            `detect shot!`,
+            timestampForVideo,
+            timestampMs,
+            timestampHead,
+          );
         },
       };
       let externalRendering = {
         onExternalRendering: (stream: string, proto: string) => {
           let cropInfo = convertSeralizedExternalRenderingInfoToObj(proto);
           resultCropInfo.push(cropInfo);
+          console.log(`detect crop window!`, cropInfo);
+        },
+      };
+      let faceDetect = {
+        onFace: (stream: string, proto: string, timestamp: number) => {
+          let faceInfo: faceDetectRegion = convertSeralizedFaceDetectionInfoToObj(
+            proto,
+            timestamp,
+          );
+          resultFaces.push(faceInfo);
+          console.log(`detect face window!`, faceInfo);
         },
       };
       const shotPacketListener: any = autoflipModule.PacketListener.implement(
@@ -160,12 +218,16 @@ onmessage = function (e: MessageEvent): void {
       const extPacketListener: any = autoflipModule.PacketListener.implement(
         externalRendering,
       );
+      const facePacketListener: any = autoflipModule.PacketListener.implement(
+        faceDetect,
+      );
 
       autoflipModule.attachListener(
         'external_rendering_per_frame',
         extPacketListener,
       );
       autoflipModule.attachListener('shot_change', shotPacketListener);
+      autoflipModule.attachListener('face_regions', facePacketListener);
 
       fetch('autoflip_wasm/autoflip_web_graph.binarypb')
         .then(
@@ -175,94 +237,102 @@ onmessage = function (e: MessageEvent): void {
         )
         .then((buffer): void => {
           autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
-
-          // Sets the aspect ratio setAspectRatio(1, 1) = '1:1' or
-          // setAspectRatio(16, 11) = '16: 11'.
           autoflipModule.changeBinaryGraph(buffer);
         });
     });
   }
+
+  if (signal.type === 'changeAspectRatio') {
+    frameNumber = (1 + signal.videoId) * 15 * workerWindow - signal.startId;
+  } else {
+    frameNumber = workerWindow * 15;
+  }
   // Gets frameData from indexDB and process with Autoflip.
-  readFramesFromIndexedDB(signal.videoId, signal.startTime).then(
+  readFramesFromIndexedDB(signal.videoId, signal.startId, frameNumber).then(
     (value: Frame[]): void => {
       console.log(`PROMISE: promise ${signal.videoId} returned`);
       let frameData: Frame[] = value;
       handleFrames(frameData, signal);
       if (signal.end === true) {
+        // This closes the graph and posts the final
+        // analysis result back to main script.
         const b = autoflipModule.closeGraphInternal();
-        // This posts the analysis result back to main script.
         ctx.postMessage({
           type: 'finishedAnalysis',
           cropWindows: resultCropInfo,
-          startId: currentId,
+          startId: signal.startId,
           videoId: signal.videoId,
           shots: resultShots,
+          faceDetections: resultFaces,
+          user: signal.user,
         });
       } else {
+        autoflipModule.runTillIdle();
+        // This posts the current analysis result back to main script.
         ctx.postMessage({
-          type: 'nextCrop',
-          videoId: signal.videoId + 1,
+          type: 'currentAnalysis',
+          cropWindows: resultCropInfo,
+          startId: signal.startId,
+          videoId: signal.videoId,
+          shots: resultShots,
+          faceDetections: resultFaces,
+          user: signal.user,
         });
       }
+      resultCropInfo = [];
+      resultShots = [];
+      resultFaces = [];
     },
   );
 };
 
 /** Processes input frames with autoflip wasm. */
-function handleFrames(frameData: Frame[], signal: Signal): void {
-  console.log(
-    `AUTOFLIP: video (${signal.videoId}) received from main`,
-    frameData,
-  );
-  const info = { width: videoWidth, height: videoHeight };
-  for (let i = 0; i < frameData.length; i++) {
-    const image = frameData[i].data; // Array buffer from FFmpeg, .tiff <-
-    // Saving array buffer to the wasm heap memory.
-    const numBytes = image.byteLength;
-    const ptr = ctx.Module._malloc(numBytes);
-    const heapBytes = new Uint8Array(ctx.Module.HEAPU8.buffer, ptr, numBytes);
-    const uint8Image = new Uint8Array(image);
-    heapBytes.set(uint8Image);
-    // End saving memory.
-    const status = autoflipModule.processRawYuvBytes(
-      ptr,
-      info.width,
-      info.height,
+async function handleFrames(
+  frameData: Frame[],
+  signal: Signal,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    console.log(
+      `AUTOFLIP: video (${signal.videoId}) received from main`,
+      frameData,
     );
-    // Do this to check if it saved correctly.
-    if (!status) {
-      console.error(status);
-      throw new Error('Autoflip had an error!');
+    const info = { width: videoWidth, height: videoHeight };
+    for (let i = 0; i < frameData.length; i++) {
+      const image = frameData[i].data; // Array buffer from FFmpeg, .tiff <-
+      // Saving array buffer to the wasm heap memory.
+      const numBytes = image.byteLength;
+      const ptr = ctx.Module._malloc(numBytes);
+      const heapBytes = new Uint8Array(ctx.Module.HEAPU8.buffer, ptr, numBytes);
+      const uint8Image = new Uint8Array(image);
+      heapBytes.set(uint8Image);
+      // End saving memory.
+      const status = autoflipModule.processRawYuvBytes(
+        ptr,
+        info.width,
+        info.height,
+      );
+      // Do this to check if it saved correctly.
+      if (!status) {
+        console.error(status);
+        throw new Error('Autoflip had an error!');
+      }
+      // Finish.
+      autoflipModule._free(ptr);
     }
-    // Finish.
-    autoflipModule._free(ptr);
-  }
-
-  const a = autoflipModule.runTillIdle();
-
-  if (resultCropInfo.length !== 0) {
-    // This posts the analysis result back to main script.
-    ctx.postMessage({
-      type: 'currentAnalysis',
-      cropWindows: resultCropInfo,
-      startId: currentId,
-      videoId: signal.videoId,
-      shots: resultShots,
-    });
-    currentId += resultCropInfo.length;
-    resultCropInfo = [];
-    resultShots = [];
-  } else {
-    console.log(`AUTOFLIP: runTillIdle is not avaiable`);
-  }
+    resolve('success');
+  });
 }
 
 /** Reads frame decode data rows from the indexDB. */
 async function readFramesFromIndexedDB(
   videoId: number,
-  start: number,
+  startId: number,
+  frameNumber: number,
 ): Promise<Frame[]> {
-  const key = start * 15;
+  console.log(`startid`, startId);
+  const key = startId;
+  console.log(`frameNumber last`, frameNumber);
+  console.log(`key, read from database`, key, frameNumber);
   const transaction: IDBTransaction = dbAutoflip.transaction(['decodedFrames']);
   const objectStore: IDBObjectStore = transaction.objectStore('decodedFrames');
   let frameData: Frame[] = [];
@@ -276,7 +346,7 @@ async function readFramesFromIndexedDB(
     transaction.onerror = function (): void {
       reject(`Transaction get failed for section ${videoId}`);
     };
-    for (let i = 0; i < 15 * workerWindow; i++) {
+    for (let i = 0; i < frameNumber; i++) {
       let request = objectStore.get(key + i);
       request.onerror = function (event) {
         console.log(
@@ -351,4 +421,21 @@ function convertSeralizedExternalRenderingInfoToObj(
     renderInformation.targetHeight = protoArray[5];
   }
   return renderInformation;
+}
+
+/** Transfers the overall crop and render information from stream. */
+function convertSeralizedFaceDetectionInfoToObj(
+  protoString: string,
+  timestamp: number,
+): faceDetectRegion {
+  console.log('proto', protoString);
+  const protoArray: any[] = JSON.parse(protoString);
+  const faceDetectionInfo: faceDetectRegion = {};
+  if (protoArray ?? false) {
+    faceDetectionInfo.faceRegion = convertSeralizedRectToObj(
+      protoArray as any[],
+    );
+  }
+  faceDetectionInfo.timestamp = timestamp;
+  return faceDetectionInfo;
 }
