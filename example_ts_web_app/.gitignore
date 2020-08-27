@@ -3,6 +3,7 @@
 
 # Allow config files written in javascript files.
 !.*.js
+!jest.config.js
 !webpack.config.js
 
 # Ignore all node_modules.
