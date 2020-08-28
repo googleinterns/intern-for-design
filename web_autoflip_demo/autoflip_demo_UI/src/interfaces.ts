@@ -144,7 +144,9 @@ interface ExternalRenderingInformation {
    * fill the rest of the frame with this color.
    */
   padding_color?: Color;
-  /** Timestamp in microseconds of this frame. */
+  /**
+   * Timestamp in microseconds of this frame.
+   */
   timestampUS?: number;
   /**
    * Target width of the cropped video in pixels. |render_to_location| is
@@ -166,11 +168,35 @@ interface faceDetectRegion {
    * Face bounding box for detecting full face.
    */
   faceRegion?: Rect | undefined;
-
+  /**
+   * Signal as numbers reprentes the type of the signal (full face, landmarks).
+   */
   signalType?: number;
+  /**
+   * Caculated importance score for the detected signal.
+   */
 
   score?: number;
-
-  /** Timestamp in microseconds of the detected face bounding box. */
+  /**
+   * Timestamp in microseconds of the detected face bounding box.
+   */
   timestamp?: number;
+}
+
+/**
+ * The information used for refeed autoflip sceneCropping caculator.
+ */
+interface refeedSignals {
+  /**
+   * The border signals of the whole video.
+   */
+  borders: { border: string; timestamp: number }[];
+  /**
+   * The feature detection signals of the whole video.
+   */
+  detections: { detection: string; timestamp: number }[];
+  /**
+   * The shot signals of the whole video.
+   */
+  shots: { shot: boolean; timestamp: number }[];
 }

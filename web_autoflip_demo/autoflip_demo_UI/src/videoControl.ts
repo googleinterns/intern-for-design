@@ -248,4 +248,3 @@ $('.custom-video-area').each(function () {
     }
   });
 });
-

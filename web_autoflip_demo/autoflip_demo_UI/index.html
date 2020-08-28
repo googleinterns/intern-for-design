@@ -22,7 +22,7 @@ limitations under the License.
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="src/css/styles.css" />
   </head>
   <body>
     <h1 style="text-align: left; margin-left: 10rem;">AutoFlip</h1>
@@ -88,15 +88,9 @@ limitations under the License.
         </form>
       </div>
     </div>
-
     <div
       class="card"
       id="card2"
-      style="display: none; text-align: center;"
-    ></div>
-    <div
-      class="card"
-      id="card3"
       style="
         position: relative;
         height: 600px;
@@ -163,7 +157,6 @@ limitations under the License.
             <video
               id="video-display"
               width="400px"
-              height="300px"
               style="
                 position: absolute;
                 left: 0px;
@@ -480,7 +473,7 @@ limitations under the License.
         <div id="history" style="text-align: center;"></div>
       </div>
     </div>
-    <div class="card" id="card5" style="display: none;">
+    <div class="card" id="card3" style="display: none;">
       <div>
         <video id="video-play" width="400px" controls="false"></video>
         <canvas id="canvas" style="background-color: blue;"></canvas>
@@ -494,8 +487,8 @@ limitations under the License.
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
-    <script src="https://d3js.org/d3.v4.min.js"></script>
-    <script src="render.js"></script>
-    <script src="main.js"></script>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+
+    <script src="./dist/build.js"></script>
   </body>
 </html>

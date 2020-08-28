@@ -3,6 +3,7 @@ module.exports = {
     browser: false,
     es6: true,
     node: true,
+    jest: true,
   },
   extends: [
     'plugin:@typescript-eslint/recommended',
@@ -16,9 +17,12 @@ module.exports = {
   },
   plugins: ['prettier', '@typescript-eslint'],
   rules: {
-    'prettier/prettier': ['error', {
-        'endOfLine':'auto',
-    }],
+    'prettier/prettier': [
+      'error',
+      {
+        endOfLine: 'auto',
+      },
+    ],
     '@typescript-eslint/array-type': 'error',
     '@typescript-eslint/member-delimiter-style': [
       'error',
@@ -46,13 +50,7 @@ module.exports = {
     'dot-notation': 'error',
     eqeqeq: ['error', 'smart'],
     'guard-for-in': 'error',
-    'id-blacklist': [
-      'error',
-      'any',
-      'number',
-      'string',
-      'boolean',
-    ],
+    'id-blacklist': ['error', 'any', 'number', 'string', 'boolean'],
     'id-match': 'error',
     'max-classes-per-file': ['error', 1],
     'max-len': [
@@ -94,5 +92,11 @@ module.exports = {
     'valid-typeof': 'off',
     'sort-imports': 'off',
     'import/order': 'off',
+  },
+  globals: {
+    page: true,
+    browser: true,
+    context: true,
+    jestPuppeteer: true,
   },
 };

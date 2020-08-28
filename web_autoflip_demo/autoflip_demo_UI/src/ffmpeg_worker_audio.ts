@@ -13,25 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-importScripts('ffmpeg.js');
+importScripts('ffmpeg_wasm/ffmpeg.js');
+importScripts('utils_ffmpeg.js');
 
 let videoBufferReceivedAudio: ArrayBuffer;
-
-/** Parses a string command to arguments. */
-function parseArgumentsAudio(text: string): string[] {
-  text = text.replace(/\s+/g, ' ');
-  let args: string[] = [];
-  // This allows double quotes to not split args.
-  text.split('"').forEach(function (t, i): void {
-    t = t.trim();
-    if (i % 2 === 1) {
-      args.push(t);
-    } else {
-      args = args.concat(t.split(' '));
-    }
-  });
-  return args;
-}
 
 /** Sends output data back to main script. */
 onmessage = function (e: MessageEvent): void {
@@ -42,7 +27,7 @@ onmessage = function (e: MessageEvent): void {
     const ctx = self as any;
     console.log(`AUDIO: going to process video array to extract audio`, e.data);
     const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
-    const args = parseArgumentsAudio(
+    const args = ctx.parseArguments(
       `-i input.webm -vn -acodec copy output.aac`,
     );
     ffmpegWasmWorker

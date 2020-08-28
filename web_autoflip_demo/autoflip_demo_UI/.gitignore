@@ -1,12 +1,12 @@
 # Ignores compiled TypeScript files.
-*.js
+
 
 # Allow config files written in javascript files.
-!*.*.js
+
 
 # Allow ffmepg/autoflip wasm files written in javascript files.
-# !*_api*.js
+
 
 
 # Ingore all node_modules
-node_modules
+
