@@ -1,11 +1,18 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-  entry: './src/index.ts',
+  entry: {
+    index: './src/index.ts',
+    autoflip_worker: './src/autoflip_worker.ts',
+    ffmpeg_worker: './src/ffmpeg_worker.ts',
+    ffmpeg_worker_audio: './src/ffmpeg_worker_audio.ts',
+    ffmpeg_worker_combine: './src/ffmpeg_worker_combine.ts',
+  },
   output: {
     path: path.resolve(__dirname, './dist'),
     publicPath: '/dist/',
-    filename: 'build.js',
+    filename: '[name].js',
   },
   module: {
     rules: [
@@ -13,11 +20,6 @@ module.exports = {
         test: /\.tsx?$/,
         loader: 'ts-loader',
         exclude: /node_modules/,
-      },
-      // Handle our workers
-      {
-        test: /\.worker\.js$/,
-        use: { loader: 'worker-loader' },
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
@@ -36,5 +38,12 @@ module.exports = {
   devServer: { historyApiFallback: true, noInfo: true },
   performance: { hints: false },
   devtool: '#eval-source-map',
-  plugins: [],
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        { from: 'src/autoflip_wasm', to: 'autoflip_wasm' },
+        { from: 'src/ffmpeg_wasm', to: 'ffmpeg_wasm' },
+      ],
+    }),
+  ],
 };

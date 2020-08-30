@@ -14,7 +14,7 @@ limitations under the License.
 */
 
 /** The interface defines a cropping information object. */
-export interface CropInfo {
+interface CropInfo {
   /** The information type, like "finishedAnalysis", "sectionAnalysis". */
   type: string;
   /** The crop windows for processed frames. */
@@ -30,7 +30,7 @@ export interface CropInfo {
 }
 
 /** The interface defines information for a resizing dimension. */
-export interface Resize {
+interface Resize {
   /** The width of the resized rectangle window. */
   width: number;
   /** The height of the resized rectangle window. */
@@ -44,7 +44,7 @@ export interface Resize {
 }
 
 /** The interface defines a video information object. */
-export interface VideoInfo {
+interface VideoInfo {
   /** The duration of the video. */
   duration: number;
   /** The width of the video dimension. */
@@ -54,7 +54,7 @@ export interface VideoInfo {
 }
 
 /** FFmpeg wasm binary resulting data. */
-export interface FFmpegResult {
+interface FFmpegResult {
   /** FFmpeg stdout output. Only filled if returnFfmpegLogOutput is true. */
   stdout: string | undefined;
   /** FFmpeg stderr output. Only filled if returnFfmpegLogOutput is true. */
@@ -66,7 +66,7 @@ export interface FFmpegResult {
 }
 
 /** The decode data of a single video frame stored as a row in indexDB */
-export interface Frame {
+interface Frame {
   /** The generate frame name from ffmpeg */
   name: string;
   /** The decode data for the frame */
@@ -79,7 +79,7 @@ export interface Frame {
  * A message signal from main script to autoflip worker to
  * indicate processing of next section of the videoData.
  */
-export interface Signal {
+interface Signal {
   /**
    * The type of the message to indicate the state of the
    * section to crop, for example "firstCrop"
@@ -106,7 +106,7 @@ export interface Signal {
 /**
  * A rectangle element with position information
  */
-export interface Rect {
+interface Rect {
   x: number;
   y: number;
   width: number;
@@ -116,7 +116,7 @@ export interface Rect {
 /**
  * A color defined with r, g, b
  */
-export interface Color {
+interface Color {
   r: number;
   g: number;
   b: number;
@@ -126,7 +126,7 @@ export interface Color {
  * Self-contained message that provides all needed information to render
  * autoflip with an external renderer.
  */
-export interface ExternalRenderingInformation {
+interface ExternalRenderingInformation {
   /**
    * Rect that must be cropped out of the input frame.  It is in the original
    * dimensions of the input video.  The first step to render this frame is to
@@ -163,7 +163,7 @@ export interface ExternalRenderingInformation {
 /**
  * Self-contained message that provides information for a face bounding box
  */
-export interface faceDetectRegion {
+interface faceDetectRegion {
   /**
    * Face bounding box for detecting full face.
    */
@@ -186,7 +186,7 @@ export interface faceDetectRegion {
 /**
  * The information used for refeed autoflip sceneCropping caculator.
  */
-export interface RefeedSignals {
+interface RefeedSignals {
   /**
    * The border signals of the whole video.
    */

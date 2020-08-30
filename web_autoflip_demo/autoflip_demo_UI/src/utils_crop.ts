@@ -36,13 +36,6 @@ import { putMiddle } from './centerContent';
 import { changeAspect } from './changeAspectRatio';
 import * as d3 from 'd3';
 
-import {
-  CropInfo,
-  ExternalRenderingInformation,
-  faceDetectRegion,
-  Rect,
-  Color,
-} from './interfaces';
 /** Displays cropped window of the video. */
 export function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   const user = videoCropInfo.user;

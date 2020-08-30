@@ -14,7 +14,7 @@ limitations under the License.
 */
 
 $('.custom-video-area').each(function () {
-  const $input_video = $(this).find('#video-display');
+  const $input_video = $(this).find('#video-preview');
   const $main_video_play = $(this).find('#main-video-play');
   const $main_video_pause = $(this).find('#main-video-pause');
   const $main_video_time_current = $(this).find('#main-video-time-current');

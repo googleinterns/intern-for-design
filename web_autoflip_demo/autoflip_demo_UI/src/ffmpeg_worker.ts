@@ -15,13 +15,25 @@ limitations under the License.
 
 /** FFmpeg wasm binary resulting data. */
 
-importScripts('ffmpeg_wasm/ffmpeg.js');
-importScripts('utils_ffmpeg.js');
-importScripts('utils_indexDB.js');
-
-import { Frame, FFmpegResult } from './interfaces';
+importScripts('./ffmpeg_wasm/ffmpeg.js');
 
 let videoBufferReceived: ArrayBuffer;
+
+/** Parses a string command to arguments. */
+function parseArguments(text: string): string[] {
+  text = text.replace(/\s+/g, ' ');
+  let args: string[] = [];
+  // This allows double quotes to not split args.
+  text.split('"').forEach(function (t, i): void {
+    t = t.trim();
+    if (i % 2 === 1) {
+      args.push(t);
+    } else {
+      args = args.concat(t.split(' '));
+    }
+  });
+  return args;
+}
 
 /** Sends output data back to main script. */
 onmessage = function (e: MessageEvent): void {
@@ -41,7 +53,7 @@ onmessage = function (e: MessageEvent): void {
       e.data,
     );
     const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
-    const args = ctx.parseArguments(
+    const args = parseArguments(
       `-ss ${e.data.startTime} -i input.webm -t ${e.data.workWindow} -vf fps=15 -c:v rawvideo -pixel_format yuv420p out_%04d.tif`,
     );
     ffmpegWasmWorker
@@ -68,7 +80,7 @@ onmessage = function (e: MessageEvent): void {
         for (let i = 0; i < frames.length; i++) {
           frames[i]['frameId'] = i + frameIdStart;
         }
-        ctx.addSectionFramestoIndexDB(
+        addSectionFramestoIndexDB(
           frames,
           e.data.videoId,
           e.data.workerId,
@@ -77,3 +89,64 @@ onmessage = function (e: MessageEvent): void {
       });
   }
 };
+
+/** Adds section frames to indexDB "frames" store. */
+function addSectionFramestoIndexDB(
+  framesData: Frame[],
+  videoId: number,
+  workerId: number,
+  user: { inputWidth: number; inputHeight: number },
+): void {
+  const ctx = self as any;
+  // Gets the indexDB database to store the decoded frame data.
+  getIndexDBToWrite().then((db: IDBDatabase) => {
+    // Inizializes a transation on database 'decodeFrames'.
+    let transaction: IDBTransaction = db.transaction(
+      ['decodedFrames'],
+      'readwrite',
+    );
+    transaction.oncomplete = function (): void {
+      console.log(
+        `FFMEPG: Transaction is complete for section ${videoId} from worker ${workerId}`,
+      );
+      ctx.postMessage({
+        type: 'decodingDone',
+        videoId: videoId,
+        workerId: workerId,
+        user: user,
+      });
+    };
+    transaction.onerror = function (): void {
+      console.log(`FFMPEG: Transaction failed for section ${videoId}`);
+    };
+
+    // Gets an object store to operate on it.
+    const decodedFrames: IDBObjectStore = transaction.objectStore(
+      'decodedFrames',
+    );
+    // Stores each decode frame data tp indexDB.
+    for (let i = 0; i < framesData.length; i++) {
+      let request: IDBRequest<IDBValidKey> = decodedFrames.add(framesData[i]);
+      request.onsuccess = function (): void {};
+      request.onerror = function (): void {
+        console.log(`Error frame ${framesData[i].frameId}`, request.error);
+      };
+    }
+  });
+}
+
+/** Gets initalized indexDB database. */
+async function getIndexDBToWrite(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    let db: IDBDatabase;
+    const request = indexedDB.open('auto-flip', 1);
+    request.onerror = (event: Event) => {
+      console.error('FFMPEG: Failed to load indexeddb');
+      throw new Error(String(event));
+    };
+    request.onsuccess = (event) => {
+      db = (event.target as IDBOpenDBRequest).result;
+      resolve(db);
+    };
+  });
+}

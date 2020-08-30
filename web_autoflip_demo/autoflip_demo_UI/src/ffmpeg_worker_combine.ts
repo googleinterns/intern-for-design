@@ -13,9 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-importScripts('ffmpeg_wasm/ffmpeg.js');
-importScripts('utils_ffmpeg.js');
-import { FFmpegResult } from './interfaces';
+importScripts('./ffmpeg_wasm/ffmpeg.js');
+
+/** Parses a string command to arguments. */
+function parseArgumentsCombine(text: string): string[] {
+  text = text.replace(/\s+/g, ' ');
+  let args: string[] = [];
+  // This allows double quotes to not split args.
+  text.split('"').forEach(function (t, i): void {
+    t = t.trim();
+    if (i % 2 === 1) {
+      args.push(t);
+    } else {
+      args = args.concat(t.split(' '));
+    }
+  });
+  return args;
+}
 
 let videoAudio: any;
 let videoMuted: any;
@@ -29,11 +43,11 @@ onmessage = function (e: MessageEvent): void {
   const ctx = self as any;
   console.log(`AUDIO: going to process video array to extract audio`, e.data);
   const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
-  let args = ctx.parseArguments(
+  let args = parseArgumentsCombine(
     `-i input.webm -i audio.aac -c:v copy output.mp4`,
   );
   if (videoAudio === undefined) {
-    args = ctx.parseArguments(`-i input.webm -c:v copy output.mp4`);
+    args = parseArgumentsCombine(`-i input.webm -c:v copy output.mp4`);
   }
 
   ffmpegWasmWorker

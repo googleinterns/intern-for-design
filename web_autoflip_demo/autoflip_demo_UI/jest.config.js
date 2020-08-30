@@ -4,6 +4,6 @@ const puppeteer_preset = require('jest-puppeteer/jest-preset');
 
 module.exports = merge.recursive(puppeteer_preset, ts_preset, {
   globals: {
-    URL: 'http://localhost:4444',
+    PATH: 'http://localhost:4444',
   },
 });

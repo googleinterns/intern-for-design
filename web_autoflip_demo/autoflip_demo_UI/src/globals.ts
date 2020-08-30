@@ -1,4 +1,3 @@
-import { VideoInfo, Resize, faceDetectRegion } from './interfaces';
 export const videoPreview = <HTMLVideoElement>(
   document.querySelector('#video-preview')
 );
@@ -67,15 +66,15 @@ export let timeRender: number = videoPreview.duration;
 
 // Creates fixed workers (ffmpeg: 4, autoflip: 1).
 export const ffmpegWorkers: Worker[] = [
-  new Worker('src/ffmpeg_worker.js'),
-  new Worker('src/ffmpeg_worker.js'),
-  new Worker('src/ffmpeg_worker.js'),
-  new Worker('src/ffmpeg_worker.js'),
+  new Worker('dist/ffmpeg_worker.js'),
+  new Worker('dist/ffmpeg_worker.js'),
+  new Worker('dist/ffmpeg_worker.js'),
+  new Worker('dist/ffmpeg_worker.js'),
 ];
 
-export const autoflipWorker: Worker = new Worker('src/autoflip_worker.js');
-export const ffmpegWorkerAudio = new Worker('src/ffmpeg_worker_audio.js');
-export const ffmpegWorkerCombine = new Worker('src/ffmpeg_worker_combine.js');
+export const autoflipWorker: Worker = new Worker('dist/autoflip_worker.js');
+export const ffmpegWorkerAudio = new Worker('dist/ffmpeg_worker_audio.js');
+export const ffmpegWorkerCombine = new Worker('dist/ffmpeg_worker_combine.js');
 
 export function updateCountAutoflip(update: number): void {
   countAutoflip = update;

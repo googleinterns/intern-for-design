@@ -14,7 +14,6 @@ import {
   ffmpegWorkerAudio,
 } from './globals';
 
-import { ExternalRenderingInformation, Rect } from './interfaces';
 export function createDownload(inputWidth: number, inputHeight: number): void {
   // Puases the main preview video player to ensure recording quality
   videoPreview.pause();
