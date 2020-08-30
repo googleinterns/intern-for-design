@@ -65,12 +65,7 @@ limitations under the License.
         <h3 style="margin-top: 80px;">Aspect Ratio</h3>
         <form>
           <label for="fname">Width:</label><br />
-          <input
-            type="text"
-            id="aspect-weight"
-            name="aspectW"
-            value="1"
-          /><br />
+          <input type="text" id="aspect-width" name="aspectW" value="1" /><br />
           <label for="lname">Height:</label><br />
           <input type="text" id="aspect-height" name="aspectH" value="1" />
         </form>
@@ -155,7 +150,7 @@ limitations under the License.
             "
           >
             <video
-              id="video-display"
+              id="video-preview"
               width="400px"
               style="
                 position: absolute;
@@ -475,7 +470,7 @@ limitations under the License.
     </div>
     <div class="card" id="card3" style="display: none;">
       <div>
-        <video id="video-play" width="400px" controls="false"></video>
+        <video id="video-record" width="400px" controls="false"></video>
         <canvas id="canvas" style="background-color: blue;"></canvas>
       </div>
     </div>

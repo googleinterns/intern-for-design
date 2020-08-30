@@ -15,7 +15,27 @@ limitations under the License.
 
 // These are the listeners that will recieve the changes from autoflip.
 // They are called whenever there is a change.
-let shotChange = {
+import {
+  timestampHead,
+  resultShots,
+  hasSignals,
+  refeedInformation,
+  resultCropInfo,
+  resultFaces,
+  videoWidth,
+  videoHeight,
+  autoflipModule,
+  ctx,
+} from './autoflip_worker';
+import {
+  faceDetectRegion,
+  ExternalRenderingInformation,
+  Frame,
+  Signal,
+  Color,
+  Rect,
+} from './interfaces';
+export let shotChange = {
   onShot: (stream: string, change: boolean, timestampMs: number) => {
     const timestampForVideo = timestampMs + timestampHead;
     resultShots.push(timestampForVideo);
@@ -28,14 +48,14 @@ let shotChange = {
     }
   },
 };
-let externalRendering = {
+export let externalRendering = {
   onExternalRendering: (stream: string, proto: string) => {
     let cropInfo = convertSeralizedExternalRenderingInfoToObj(proto);
     resultCropInfo.push(cropInfo);
     console.log(`detect crop window!`, cropInfo);
   },
 };
-let featureDetect = {
+export let featureDetect = {
   onFeature: (stream: string, proto: string, timestamp: number) => {
     let faceInfo: faceDetectRegion[] = convertSeralizedFaceDetectionInfoToObj(
       proto,
@@ -51,7 +71,7 @@ let featureDetect = {
     }
   },
 };
-let borderDetect = {
+export let borderDetect = {
   onBorder: (stream: string, proto: string, timestamp: number) => {
     console.log(`detect border!`, proto, timestamp);
     if (!hasSignals) {
@@ -157,7 +177,7 @@ function convertSeralizedFaceDetectionInfoToObj(
 }
 
 /** Processes input frames with autoflip wasm. */
-async function refeedSignals(): Promise<string> {
+export async function refeedSignals(): Promise<string> {
   return new Promise((resolve, reject) => {
     console.log('AUTOFLIP: start refeeding');
     const info = { width: videoWidth, height: videoHeight };
@@ -195,7 +215,7 @@ async function refeedSignals(): Promise<string> {
 }
 
 /** Processes input frames with autoflip wasm. */
-async function handleFrames(
+export async function handleFrames(
   frameData: Frame[],
   signal: Signal,
 ): Promise<string> {

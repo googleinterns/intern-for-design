@@ -1,10 +1,27 @@
-function createDownload(inputWidth: number, inputHeight: number): void {
+import {
+  videoPreview,
+  canvas,
+  cropWindowStorage,
+  videoRecord,
+  card2,
+  card4,
+  timerDisplay,
+  videoBuffer,
+  audio,
+  updateAudio,
+  outputStorage,
+  ffmpegWorkerCombine,
+  ffmpegWorkerAudio,
+} from './globals';
+
+import { ExternalRenderingInformation, Rect } from './interfaces';
+export function createDownload(inputWidth: number, inputHeight: number): void {
   // Puases the main preview video player to ensure recording quality
-  video.pause();
+  videoPreview.pause();
   const canvas2D = canvas.getContext('2d') as CanvasRenderingContext2D;
 
   const cropWindows: ExternalRenderingInformation[] =
-    cyclesCropWindows[`${inputHeight}&${inputWidth}`];
+    cropWindowStorage[`${inputHeight}&${inputWidth}`];
   const render = cropWindows[0].renderToLocation as Rect;
   canvas.width = render.width;
   canvas.height = render.height;
@@ -18,16 +35,16 @@ function createDownload(inputWidth: number, inputHeight: number): void {
   let output: ArrayBuffer;
   let stream: any;
 
-  video.currentTime = 0;
-  videoPlay.play();
+  videoPreview.currentTime = 0;
+  videoRecord.play();
   startRecording();
   loop();
 
   function loop() {
     canvas2D.imageSmoothingEnabled = false;
-    if (!videoPlay.paused && !videoPlay.ended) {
+    if (!videoRecord.paused && !videoRecord.ended) {
       canvas2D.drawImage(
-        videoPlay,
+        videoRecord,
         videoCropX,
         videoCropY,
         videoCropWidth,
@@ -58,7 +75,7 @@ function createDownload(inputWidth: number, inputHeight: number): void {
   }
 
   function startRecording(): void {
-    videoPlay.play();
+    videoRecord.play();
     stream = canvas.captureStream(0);
     console.log('Started stream capture from canvas element: ', stream);
     const options = { mimeType: 'video/webm;codecs=h264' };
@@ -79,7 +96,7 @@ function createDownload(inputWidth: number, inputHeight: number): void {
   }
 
   function download(inputWidth: number, inputHeight: number): void {
-    const blob = new Blob([resultVideos[`${inputWidth}&${inputHeight}`]], {
+    const blob = new Blob([outputStorage[`${inputWidth}&${inputHeight}`]], {
       type: 'video/mp4',
     });
     const url = window.URL.createObjectURL(blob);
@@ -115,7 +132,7 @@ function createDownload(inputWidth: number, inputHeight: number): void {
       console.log('MAIN: Combine: Main thread receive combined video', output);
       card2.style.display = 'flex';
       card4.style.display = 'none';
-      resultVideos[`${inputWidth}&${inputHeight}`] = output;
+      outputStorage[`${inputWidth}&${inputHeight}`] = output;
       download(inputWidth, inputHeight);
       const downloadButton = <HTMLButtonElement>(
         document.querySelector(`#download-${inputWidth}-${inputHeight}`)
@@ -126,10 +143,10 @@ function createDownload(inputWidth: number, inputHeight: number): void {
     };
   }
 
-  videoPlay.addEventListener('timeupdate', function (): void {
+  videoRecord.addEventListener('timeupdate', function (): void {
     for (let i = 0; i < cropWindows.length; i++) {
       let cropWindowForFrame = cropWindows[i].cropFromLocation as Rect;
-      if (videoPlay.currentTime > i * (1 / 15)) {
+      if (videoRecord.currentTime > i * (1 / 15)) {
         videoCropX = cropWindowForFrame.x;
         videoCropY = cropWindowForFrame.y;
         videoCropWidth = cropWindowForFrame.width;
@@ -164,7 +181,7 @@ function timer(): void {
 }
 
 /** Extract the audio from the input video */
-function getAudioOfVideo(): void {
+export function getAudioOfVideo(): void {
   console.log('AUDIO: Main thread post video to extrat audio');
   ffmpegWorkerAudio.postMessage({
     type: 'videoData',
@@ -174,7 +191,7 @@ function getAudioOfVideo(): void {
   ffmpegWorkerAudio.onmessage = function (e: MessageEvent): void {
     console.log('AUDIO: Main thread receive audio', e.data);
     if (e.data.data.buffers.length !== 0) {
-      audio = e.data.data.buffers[0].data;
+      updateAudio(e.data.data.buffers[0].data);
     }
   };
 }

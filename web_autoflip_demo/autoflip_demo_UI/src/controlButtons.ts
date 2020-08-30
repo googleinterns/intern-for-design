@@ -1,3 +1,13 @@
+import {
+  shotStorage,
+  leftBox,
+  rightBox,
+  downBox,
+  topBox,
+  isMasked,
+  updateIsMasked,
+} from './globals';
+
 const shotButton = <HTMLLIElement>document.querySelector('#shot-button');
 shotButton.onclick = nextShot;
 
@@ -10,13 +20,13 @@ function nextShot(): void {
     document.querySelector('#video-display')
   );
   const time: number = videoPerview.currentTime;
-  for (let i = 0; i < shotArray.length; i++) {
-    if (shotArray[i] / 1000000 > time) {
-      videoPerview.currentTime = shotArray[i] / 1000000;
+  for (let i = 0; i < shotStorage.length; i++) {
+    if (shotStorage[i] / 1000000 > time) {
+      videoPerview.currentTime = shotStorage[i] / 1000000;
       return;
     }
   }
-  videoPerview.currentTime = shotArray[0];
+  videoPerview.currentTime = shotStorage[0];
 }
 
 /** Masks the cropped part of the video. */
@@ -31,7 +41,7 @@ function maskVideo(): void {
     rightBox.setAttribute('fill-opacity', '50%');
     downBox.setAttribute('fill-opacity', '50%');
     topBox.setAttribute('fill-opacity', '50%');
-    isMasked = false;
+    updateIsMasked(false);
   } else {
     maskButton.innerHTML = 'Show Original';
     leftBox.style.fill = 'white';
@@ -42,6 +52,6 @@ function maskVideo(): void {
     rightBox.setAttribute('fill-opacity', '100%');
     downBox.setAttribute('fill-opacity', '100%');
     topBox.setAttribute('fill-opacity', '100%');
-    isMasked = true;
+    updateIsMasked(true);
   }
 }

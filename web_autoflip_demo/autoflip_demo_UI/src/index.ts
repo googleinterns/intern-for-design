@@ -15,7 +15,7 @@ require('./utils_autoflip.ts');
 require('./utils_crop.ts');
 require('./utils_ffmpeg.ts');
 require('./utils_indexDB.ts');
-require('./variables.ts');
+require('./globals.ts');
 require('./videoControl.ts');
 require('./videoPlayLimit.ts');
 require('./css/styles.css');

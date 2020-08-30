@@ -1,3 +1,18 @@
+import {
+  handlerStorage,
+  curAspectRatio,
+  videoPreview,
+  sectionIndexStorage,
+  cropWindowStorage,
+  sectionNumber,
+  processWindow,
+  videoInfo,
+  countAutoflip,
+  updateCountAutoflip,
+  autoflipWorker,
+} from './globals';
+import { addHistoryButton, updateAutoflipBar } from './utils_crop';
+
 const changeAspectForm = <HTMLFormElement>(
   document.querySelector('#change-aspect-form')
 );
@@ -17,40 +32,60 @@ function handleChangeAspect(e: Event): void {
   changeAspect(Number(changeInputHeight), Number(changeInputWidth));
 }
 
-function changeAspect(changeInputHeight: number, changeInputWidth: number) {
+export function changeAspect(
+  changeInputHeight: number,
+  changeInputWidth: number,
+) {
   const preHandlers =
-    handlers[`${userInput.inputHeight}&${userInput.inputWidth}`];
+    handlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
   console.log(`The user input is`, changeInputHeight, changeInputWidth);
 
-  userInput.inputWidth = changeInputWidth;
-  userInput.inputHeight = changeInputHeight;
+  curAspectRatio.inputWidth = changeInputWidth;
+  curAspectRatio.inputHeight = changeInputHeight;
   for (let i = 0; i < preHandlers.length; i++) {
-    video.removeEventListener('timeupdate', preHandlers[i]);
+    videoPreview.removeEventListener('timeupdate', preHandlers[i]);
   }
 
   console.log(`check if exist!`);
   if (
-    expected[`${userInput.inputHeight}&${userInput.inputWidth}`] === undefined
+    sectionIndexStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] === undefined
   ) {
     console.log(`notexsit!`);
     addHistoryButton();
-    cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`] = [];
-    handlers[`${userInput.inputHeight}&${userInput.inputWidth}`] = [];
-    expected[`${userInput.inputHeight}&${userInput.inputWidth}`] = 0;
+    cropWindowStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = [];
+    handlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = [];
+    sectionIndexStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = 0;
   }
-  const expect = expected[`${userInput.inputHeight}&${userInput.inputWidth}`];
+  const expect =
+    sectionIndexStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
   const windows =
-    cyclesCropWindows[`${userInput.inputHeight}&${userInput.inputWidth}`];
+    cropWindowStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
   const curVideoId = Math.floor(windows.length / 30);
-  counta = windows.length;
-  updateAutoflipBar(counta);
+  updateCountAutoflip(windows.length);
+  updateAutoflipBar(countAutoflip);
 
   const handlersCurrent =
-    handlers[`${userInput.inputHeight}&${userInput.inputWidth}`];
+    handlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
   for (let i = 0; i < handlersCurrent.length; i++) {
-    video.addEventListener('timeupdate', handlersCurrent[i]);
+    videoPreview.addEventListener('timeupdate', handlersCurrent[i]);
   }
-  if (size === Math.ceil(windows.length / 30)) {
+  if (sectionNumber === Math.ceil(windows.length / 30)) {
   } else {
     console.log(
       `post startID`,
@@ -64,10 +99,11 @@ function changeAspect(changeInputHeight: number, changeInputWidth: number) {
       startTime: expect * processWindow,
       width: videoInfo.width,
       height: videoInfo.height,
-      end: curVideoId === size - 1,
-      user: userInput,
+      end: curVideoId === sectionNumber - 1,
+      user: curAspectRatio,
     });
-    expected[`${userInput.inputHeight}&${userInput.inputWidth}`] =
-      Math.floor(windows.length / 30) + 1;
+    sectionIndexStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = Math.floor(windows.length / 30) + 1;
   }
 }

@@ -14,6 +14,11 @@ module.exports = {
         loader: 'ts-loader',
         exclude: /node_modules/,
       },
+      // Handle our workers
+      {
+        test: /\.worker\.js$/,
+        use: { loader: 'worker-loader' },
+      },
       {
         test: /\.(png|jpg|gif|svg)$/,
         loader: 'file-loader',

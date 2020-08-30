@@ -1,5 +1,6 @@
 import { addSectionFramestoIndexDB } from '../src/utils_indexDB';
 import { readFramesFromIndexedDB } from '../src/utils_indexDB';
+import { Frame } from '../src/interfaces';
 
 test('write and read database', () => {
   let framesData = [];

@@ -17,26 +17,41 @@ importScripts('autoflip_wasm/autoflip_live_bin.js');
 importScripts('autoflip_wasm/autoflip_live_loader.js');
 importScripts('utils_indexDB.js');
 importScripts('utils_autoflip.js');
+import { handleFrames, refeedSignals } from './utils_autoflip';
+import {
+  ExternalRenderingInformation,
+  faceDetectRegion,
+  RefeedSignals,
+  Signal,
+  Frame,
+} from './interfaces';
 
-const ctx: any = self;
-let videoWidth: number = 0;
-let videoHeight: number = 0;
+import {
+  shotChange,
+  externalRendering,
+  borderDetect,
+  featureDetect,
+} from './utils_autoflip';
+
+export const ctx: any = self;
+export let videoWidth: number = 0;
+export let videoHeight: number = 0;
 let videoAspectWidth: number = 1;
 let videoAspectHeight: number = 1;
 let workerWindow: number = 0;
-let resultCropInfo: ExternalRenderingInformation[] = [];
-let resultShots: number[] = [];
-let resultFaces: faceDetectRegion[][] = [];
-let timestampHead: number = 0;
+export let resultCropInfo: ExternalRenderingInformation[] = [];
+export let resultShots: number[] = [];
+export let resultFaces: faceDetectRegion[][] = [];
+export let timestampHead: number = 0;
 let frameNumber: number = workerWindow * 15;
-let refeedInformation: refeedSignals = {
+export let refeedInformation: RefeedSignals = {
   borders: [],
   detections: [],
   shots: [],
 };
-let hasSignals: boolean = false;
+export let hasSignals: boolean = false;
 
-let autoflipModule: any;
+export let autoflipModule: any;
 declare const Module: any;
 Module.locateFile = (f: string): string => `autoflip_wasm/${f}`;
 const demo = (this as any).DemoModule(Module);

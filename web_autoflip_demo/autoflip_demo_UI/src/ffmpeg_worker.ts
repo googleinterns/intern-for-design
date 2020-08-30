@@ -19,6 +19,8 @@ importScripts('ffmpeg_wasm/ffmpeg.js');
 importScripts('utils_ffmpeg.js');
 importScripts('utils_indexDB.js');
 
+import { Frame, FFmpegResult } from './interfaces';
+
 let videoBufferReceived: ArrayBuffer;
 
 /** Sends output data back to main script. */

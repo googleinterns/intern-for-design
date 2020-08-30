@@ -15,7 +15,7 @@ limitations under the License.
 
 importScripts('ffmpeg_wasm/ffmpeg.js');
 importScripts('utils_ffmpeg.js');
-
+import { FFmpegResult } from './interfaces';
 let videoBufferReceivedAudio: ArrayBuffer;
 
 /** Sends output data back to main script. */

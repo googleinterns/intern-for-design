@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { Frame } from './interfaces';
 /** Gets initalized indexDB database. */
 async function getIndexDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -36,7 +37,7 @@ export function addSectionFramestoIndexDB(
   workerId: number,
   user: { inputWidth: number; inputHeight: number },
 ): void {
-  //const ctx = self as any;
+  const ctx = self as any;
   // Gets the indexDB database to store the decoded frame data.
   getIndexDB().then((db: IDBDatabase) => {
     // Inizializes a transation on database 'decodeFrames'.

@@ -3,7 +3,6 @@ module.exports = {
     browser: false,
     es6: true,
     node: true,
-    jest: true,
   },
   extends: [
     'plugin:@typescript-eslint/recommended',
@@ -92,11 +91,5 @@ module.exports = {
     'valid-typeof': 'off',
     'sort-imports': 'off',
     'import/order': 'off',
-  },
-  globals: {
-    page: true,
-    browser: true,
-    context: true,
-    jestPuppeteer: true,
   },
 };

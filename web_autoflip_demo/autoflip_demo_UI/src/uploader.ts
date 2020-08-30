@@ -1,3 +1,6 @@
+import { updateVideoFile } from './globals';
+import { handleOnChange } from './main';
+
 const demoButton = <HTMLButtonElement>document.querySelector('#start-demo');
 demoButton.onclick = startDemo;
 
@@ -26,7 +29,7 @@ function startDemo(): void {
     });
   };
   getFileObject('src/demo_video/movie.mp4', function (fileObject: File): void {
-    videoFile = fileObject;
+    updateVideoFile(fileObject);
     handleOnChange(<Event>event);
   });
 }
@@ -41,7 +44,7 @@ function dropHandler(ev: DragEvent): void {
   ev.preventDefault();
   if (ev.dataTransfer !== null && ev.dataTransfer.items[0].kind === 'file') {
     const file = ev.dataTransfer.items[0].getAsFile() as File;
-    videoFile = file;
+    updateVideoFile(file);
     handleOnChange(ev);
   }
 }
