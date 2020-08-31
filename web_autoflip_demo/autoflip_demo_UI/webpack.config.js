@@ -4,10 +4,10 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
   entry: {
     index: './src/index.ts',
-    autoflip_worker: './src/autoflip_worker.ts',
-    ffmpeg_worker: './src/ffmpeg_worker.ts',
-    ffmpeg_worker_audio: './src/ffmpeg_worker_audio.ts',
-    ffmpeg_worker_combine: './src/ffmpeg_worker_combine.ts',
+    autoflip_worker: './src/workers/autoflip_worker.ts',
+    ffmpeg_worker: './src/workers/ffmpeg_worker.ts',
+    ffmpeg_worker_audio: './src/workers/ffmpeg_worker_audio.ts',
+    ffmpeg_worker_combine: './src/workers/ffmpeg_worker_combine.ts',
   },
   output: {
     path: path.resolve(__dirname, './dist'),

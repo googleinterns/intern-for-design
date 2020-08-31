@@ -51,11 +51,15 @@ onmessage = function (e: MessageEvent): void {
     autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
     autoflipModule.cycleGraph();
     timestampHead = Math.floor(signal.startId * (1 / 15) * 1000000);
+    resultCropInfo = [];
+    resultShots = [];
+    resultFaces = [];
   }
 
   if (
-    signal.user.inputWidth !== videoAspectWidth ||
-    signal.user.inputHeight !== videoAspectHeight
+    videoAspectWidth !== 0 &&
+    (signal.user.inputWidth !== videoAspectWidth ||
+      signal.user.inputHeight !== videoAspectHeight)
   ) {
     return;
   }
@@ -273,7 +277,7 @@ function convertSeralizedExternalRenderingInfoToObj(
       protoArray[2] as any[],
     );
   }
-  renderInformation.timestampUS = protoArray[3] ?? 0;
+  renderInformation.timestampUS = (protoArray[3] ?? 0) + timestampHead;
   if (protoArray[4] ?? false) {
     renderInformation.targetWidth = protoArray[4];
   }
@@ -294,7 +298,7 @@ function convertSeralizedFaceDetectionInfoToObj(
 
   if (protoArray.length === 0) {
     const faceDetect: faceDetectRegion = {};
-    faceDetect.timestamp = timestamp;
+    faceDetect.timestamp = timestamp + timestampHead;
     faceDetectionsInfo.push(faceDetect);
   }
   if (protoArray[1] ?? false) {
@@ -312,7 +316,7 @@ function convertSeralizedFaceDetectionInfoToObj(
           protoArray[1][i][7] as any[],
         );
       }
-      faceDetect.timestamp = timestamp;
+      faceDetect.timestamp = timestamp + timestampHead;
       console.log('face', faceDetect);
       faceDetectionsInfo.push(faceDetect);
     }

@@ -1,8 +1,21 @@
+/**
+Copyright 2020 Google LLC
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 import {
-  inputAspectWidth,
-  inputAspectHeight,
   curAspectRatio,
-  sectionNumber,
+  numberOfSection,
   cropWindowStorage,
   processWindow,
   videoInfo,
@@ -12,10 +25,10 @@ import {
   updateAutoflipIsFree,
   countFFmpeg,
   updateCountFFmpeg,
-  ffmpegWorkers,
-  autoflipWorker,
 } from './globals';
 
+import { inputAspectWidth, inputAspectHeight } from './globals_dom';
+import { ffmpegWorkers, autoflipWorker } from './globals_worker';
 import { createDownload } from './download';
 
 import {
@@ -35,7 +48,7 @@ export function startWorker(): void {
   curAspectRatio.inputHeight = Number(inputHeight);
   addHistoryButton();
   let finished: boolean[] = [];
-  for (let i = 0; i < sectionNumber; i++) {
+  for (let i = 0; i < numberOfSection; i++) {
     finished[i] = false;
   }
   cropWindowStorage[
@@ -76,7 +89,7 @@ export function startWorker(): void {
             width: videoInfo.width,
             height: videoInfo.height,
             window: processWindow,
-            end: e.data.videoId === sectionNumber - 1,
+            end: e.data.videoId === numberOfSection - 1,
             user: curAspectRatio,
           });
           updateAutoflipIsFree(false);
@@ -96,7 +109,7 @@ export function startWorker(): void {
             startId: expect * 30,
             width: videoInfo.width,
             height: videoInfo.height,
-            end: expect === sectionNumber - 1,
+            end: expect === numberOfSection - 1,
             user: curAspectRatio,
           });
           updateAutoflipIsFree(false);
@@ -106,7 +119,7 @@ export function startWorker(): void {
         }
       }
 
-      if (e.data.videoId + ffmpegWorkers.length < sectionNumber) {
+      if (e.data.videoId + ffmpegWorkers.length < numberOfSection) {
         let nextVideo = e.data.videoId + ffmpegWorkers.length;
         ffmpegWorkers[e.data.workerId].postMessage({
           videoId: nextVideo,
@@ -146,7 +159,7 @@ export function startWorker(): void {
           videoId: expect,
           startTime: expect * processWindow,
           startId: expect * 30,
-          end: expect === sectionNumber - 1,
+          end: expect === numberOfSection - 1,
           user: curAspectRatio,
         });
         sectionIndexStorage[

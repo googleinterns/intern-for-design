@@ -1,5 +1,19 @@
+/**
+Copyright 2020 Google LLC
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 import {
-  videoPreview,
   curAspectRatio,
   videoInfo,
   videoResize,
@@ -8,30 +22,31 @@ import {
   sectionIndexStorage,
   countAutoflip,
   updateCountAutoflip,
-  timestampHeadMs,
   curFaceDetection,
   updateCurFaceDetection,
+  leftWidth,
+  topHeight,
+  rightWidth,
+  shotStorage,
+  updateLeftWidth,
+  updateRightWidth,
+  updateTopHeight,
+  numberOfSection,
+  updateTimeRender,
+} from './globals';
+
+import {
+  videoPreview,
   middleBox,
   rightBox,
   leftBox,
-  leftWidth,
-  topDownHeight,
   middleBoxFrame,
   videoSection,
   maskSide,
   maskMiddle,
-  rightWidth,
-  isMasked,
   topBox,
   downBox,
-  shotStorage,
-  updateLeftWidth,
-  updateRightWidth,
-  updateTopDownHeight,
-  sectionNumber,
-  updateTimeRender,
-} from './globals';
-
+} from './globals_dom';
 import { putMiddle } from './centerContent';
 import { changeAspect } from './changeAspectRatio';
 import * as d3 from 'd3';
@@ -83,10 +98,7 @@ const timeUpdateFunction = function handleTimeUpdate(
   faceDetections: faceDetectRegion[][],
 ): void {
   for (let i = 0; i < cropInfo.length; i++) {
-    if (
-      videoPreview.currentTime >
-      <number>cropInfo[i].timestampUS / 1000000 + timestampHeadMs
-    ) {
+    if (videoPreview.currentTime > <number>cropInfo[i].timestampUS / 1000000) {
       scaleVideo(cropInfo[i]);
       setSideSVG(cropInfo[i]);
       setRenderSVG(cropInfo[i]);
@@ -97,7 +109,7 @@ const timeUpdateFunction = function handleTimeUpdate(
   for (let i = 0; i < faceDetections.length; i++) {
     if (
       videoPreview.currentTime >
-      <number>faceDetections[i][0].timestamp / 1000000 + timestampHeadMs
+      <number>faceDetections[i][0].timestamp / 1000000
     ) {
       updateCurFaceDetection(faceDetections[i]);
       renderFaceRegion(faceDetections[i]);
@@ -112,7 +124,7 @@ function setRenderSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   const ratio = videoResize.ratio;
 
   middleBox.setAttribute('x', `${renderInfo.x * ratio + leftWidth} `);
-  middleBox.setAttribute('y', `${renderInfo.y * ratio + topDownHeight}`);
+  middleBox.setAttribute('y', `${renderInfo.y * ratio + topHeight}`);
   middleBox.style.width = `${renderInfo.width * ratio}`;
   middleBox.style.height = `${renderInfo.height * ratio}`;
   const color = videoCropInfoSingle.padding_color as Color;
@@ -122,10 +134,10 @@ function setRenderSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   middleBoxFrame.style.display = 'block';
 
   middleBoxFrame.setAttribute('x', `${renderInfo.x * ratio + leftWidth}`);
-  middleBoxFrame.setAttribute('y', `${renderInfo.y * ratio + topDownHeight}`);
+  middleBoxFrame.setAttribute('y', `${renderInfo.y * ratio + topHeight}`);
   middleBoxFrame.style.width = `${renderInfo.width * ratio}`;
   middleBoxFrame.style.height = `${renderInfo.height * ratio}`;
-  videoSection.style.marginTop = `${5 - topDownHeight}px`;
+  videoSection.style.marginTop = `${5 - topHeight}px`;
 }
 /** Sets and displays side SVG elements as masking. */
 function setSideSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
@@ -133,7 +145,7 @@ function setSideSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   const cropInfo = videoCropInfoSingle.cropFromLocation as Rect;
 
   updateLeftWidth((cropInfo.x / videoInfo.width) * videoPreview.width + 5);
-  updateTopDownHeight(
+  updateTopHeight(
     Math.floor((cropInfo.y / videoInfo.height) * videoPreview.height + 5),
   );
 
@@ -147,12 +159,6 @@ function setSideSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   updateRightWidth(rightX < videoRightX ? videoRightX - rightX + 5 : 5);
   const rightBoxX = rightX < videoRightX ? rightX : videoRightX;
 
-  if (rightX > videoRightX && isMasked) {
-    rightBox.style.visibility = 'hidden';
-  } else {
-    rightBox.style.visibility = 'visible';
-  }
-
   rightBox.style.width = `${rightWidth}px`;
   topBox.style.width = `${rightBoxX + rightWidth}`;
   downBox.style.width = `${topBox.style.width}`;
@@ -161,18 +167,18 @@ function setSideSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   rightBox.setAttribute('x', `${rightBoxX}`);
   rightBox.style.height = `${Math.floor(renderInfo.height * ratio)}`;
   leftBox.style.height = `${Math.floor(renderInfo.height * ratio)}`;
-  rightBox.setAttribute('y', `${topDownHeight}`);
-  leftBox.setAttribute('y', `${topDownHeight}`);
+  rightBox.setAttribute('y', `${topHeight}`);
+  leftBox.setAttribute('y', `${topHeight}`);
 
-  topBox.style.height = `${topDownHeight}`;
+  topBox.style.height = `${topHeight}`;
   const downHeight =
-    videoPreview.height - topDownHeight - renderInfo.height * ratio > 0
-      ? videoPreview.height - topDownHeight - renderInfo.height * ratio + 10
-      : topDownHeight;
+    videoPreview.height - topHeight - renderInfo.height * ratio > 0
+      ? videoPreview.height - topHeight - renderInfo.height * ratio + 10
+      : topHeight;
   downBox.style.height = `${downHeight}`;
   downBox.setAttribute(
     'y',
-    `${rightBox.getBoundingClientRect().height + topDownHeight}`,
+    `${rightBox.getBoundingClientRect().height + topHeight}`,
   );
 
   videoPreview.style.left = `5px`;
@@ -264,8 +270,8 @@ export function updateFFmpegBar(n: number): void {
   const processText = <HTMLSpanElement>(
     document.getElementById('process-bar-text-ffmpeg')
   );
-  processText.innerHTML = `${((n / sectionNumber) * 100).toFixed(1)}%`;
-  progressBar.style.width = `${(n / sectionNumber) * 100}%`;
+  processText.innerHTML = `${((n / numberOfSection) * 100).toFixed(1)}%`;
+  progressBar.style.width = `${(n / numberOfSection) * 100}%`;
 }
 
 /**

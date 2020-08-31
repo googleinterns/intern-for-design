@@ -13,12 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { timeRender } from './globals';
-import { videoPreview } from './globals_dom';
-// Limites the video playing part to the section finished.
-
-videoPreview.addEventListener('timeupdate', function (): void {
-  if (videoPreview.currentTime > timeRender) {
-    videoPreview.currentTime = 0;
-  }
+declare let PATH: string;
+describe('Test header and title of the page', () => {
+  beforeAll(async () => {
+    await page.goto(PATH);
+  });
+  test('Title of the page', async () => {
+    const title = await page.title();
+    expect(title).toBe('Autoflip Web Demo');
+  });
+  test('Header of the page', async () => {
+    await expect(page).toMatch('AutoFlip');
+  });
+  test('Headline of the page', async () => {
+    const headlines = await page.$$('h1');
+    expect(headlines.length).toBe(2);
+  });
 });

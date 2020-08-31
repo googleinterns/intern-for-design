@@ -12,14 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { putMiddle } from './centerContent';
 import { startWorker } from './startWorkers';
 import { getAudioOfVideo } from './download';
 import {
-  videoPreview,
-  videoRecord,
-  card1,
-  card2,
   videoFile,
   updateVideoFile,
   videoInfo,
@@ -27,13 +24,14 @@ import {
   videoResize,
   updateVideoResize,
   processWindow,
-  sectionNumber,
-  updateSectionNumber,
+  numberOfSection,
+  updateNumberOfSection,
   videoBuffer,
   updateVideoBuffer,
-  ffmpegWorkers,
 } from './globals';
 
+import { videoPreview, videoRecord, card1, card2 } from './globals_dom';
+import { ffmpegWorkers } from './globals_worker';
 // Adds event to html element.
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
 inputVideo.onchange = handleOnChange;
@@ -73,10 +71,10 @@ export function handleOnChange(event: Event): void {
 
       console.log(`video info`, videoInfo, videoResize);
       console.log(`MAIN: get video infomation`, videoInfo);
-      updateSectionNumber(
+      updateNumberOfSection(
         Math.floor(videoPreview.duration / processWindow) + 1,
       );
-      console.log(`MAIN: this is the size of sections ${sectionNumber}`);
+      console.log(`MAIN: this is the size of sections ${numberOfSection}`);
 
       // Creates file reader to read video file as an array buffer
       const reader = new FileReader();

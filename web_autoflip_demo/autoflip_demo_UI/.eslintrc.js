@@ -3,6 +3,13 @@ module.exports = {
     browser: false,
     es6: true,
     node: true,
+    jest: true,
+  },
+  globals: {
+    page: true,
+    browser: true,
+    context: true,
+    jestPuppeteer: true,
   },
   extends: [
     'plugin:@typescript-eslint/recommended',
