@@ -28,10 +28,14 @@ import {
   updateNumberOfSection,
   videoBuffer,
   updateVideoBuffer,
+  curAspectRatio,
 } from './globals';
 
 import { videoPreview, videoRecord, card1, card2 } from './globals_dom';
 import { ffmpegWorkers } from './globals_worker';
+import * as d3 from 'd3';
+import { changeAspect } from './changeAspectRatio';
+
 // Adds event to html element.
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
 inputVideo.onchange = handleOnChange;
@@ -101,4 +105,40 @@ export function handleOnChange(event: Event): void {
     putMiddle();
     startWorker();
   });
+}
+/** Adds crop history button in crop log section */
+export function addHistoryButton(): void {
+  d3.select('#history')
+    .append('button')
+    .attr(
+      'id',
+      `history-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
+    )
+    .attr('type', 'button')
+    .style('display', 'block')
+    .style('margin', '3px auto')
+    .style('cursor', 'pointer')
+    .text(`${curAspectRatio.inputWidth} : ${curAspectRatio.inputHeight}`)
+    .on('click', function () {
+      console.log(`text is`, d3.select(this).text());
+      const split: string[] = d3.select(this).text().split(' ');
+      changeAspect(Number(split[2]), Number(split[0]));
+    })
+    .append('span')
+    .attr('id', `${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`)
+    .style('margin-left', '20px')
+    .text(' 0%');
+
+  d3.select('#history')
+    .append('button')
+    .attr('type', 'button')
+    .attr(
+      'id',
+      `download-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
+    )
+    .attr('disabled', 'disabled')
+    .style('display', 'block')
+    .style('margin', '3px auto')
+    .style('cursor', 'pointer')
+    .text(`download`);
 }

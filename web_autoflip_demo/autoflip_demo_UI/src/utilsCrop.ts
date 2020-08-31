@@ -1,17 +1,17 @@
 /**
-Copyright 2020 Google LLC
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Copyright 2020 Google LLC
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import {
   curAspectRatio,
@@ -47,8 +47,9 @@ import {
   topBox,
   downBox,
 } from './globals_dom';
+
 import { putMiddle } from './centerContent';
-import { changeAspect } from './changeAspectRatio';
+
 import * as d3 from 'd3';
 
 /** Displays cropped window of the video. */
@@ -103,7 +104,7 @@ const timeUpdateFunction = function handleTimeUpdate(
       setSideSVG(cropInfo[i]);
       setRenderSVG(cropInfo[i]);
       putMiddle();
-      renderFaceRegion(curFaceDetection);
+      renderFaceRegion(curFaceDetection, videoPreview);
     }
   }
   for (let i = 0; i < faceDetections.length; i++) {
@@ -112,7 +113,7 @@ const timeUpdateFunction = function handleTimeUpdate(
       <number>faceDetections[i][0].timestamp / 1000000
     ) {
       updateCurFaceDetection(faceDetections[i]);
-      renderFaceRegion(faceDetections[i]);
+      renderFaceRegion(faceDetections[i], videoPreview);
     }
   }
 };
@@ -219,7 +220,10 @@ export function renderShots(videoCropInfo: CropInfo): void {
 }
 
 /** Renders the face detection bounding boxes in video. */
-function renderFaceRegion(faceDetections: faceDetectRegion[]): void {
+export function renderFaceRegion(
+  faceDetections: faceDetectRegion[],
+  videoPreviewEle: HTMLVideoElement,
+): void {
   const svg = d3.select('#detection-bounding-box');
   svg.selectAll('*').remove();
 
@@ -245,14 +249,14 @@ function renderFaceRegion(faceDetections: faceDetectRegion[]): void {
         .append('rect')
         .attr(
           'x',
-          `${faceRect.x * videoPreview.width + videoPreview.offsetLeft}`,
+          `${faceRect.x * videoPreviewEle.width + videoPreviewEle.offsetLeft}`,
         )
         .attr(
           'y',
-          `${faceRect.y * videoPreview.height + videoPreview.offsetTop}`,
+          `${faceRect.y * videoPreviewEle.height + videoPreviewEle.offsetTop}`,
         )
-        .attr('width', `${faceRect.width * videoPreview.width}`)
-        .attr('height', `${faceRect.height * videoPreview.height}`)
+        .attr('width', `${faceRect.width * videoPreviewEle.width}`)
+        .attr('height', `${faceRect.height * videoPreviewEle.height}`)
         .attr('stroke', color)
         .attr('stroke-width', width)
         //.attr('stroke-dasharray', '2')
@@ -293,37 +297,4 @@ export function updateAutoflipBar(n: number): void {
   processText.innerHTML = `${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   span.innerHTML = ` ${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   progressBar.style.width = `${(n / totalFrameNumber) * 100}%`;
-}
-
-/** Adds crop history button in crop log section */
-export function addHistoryButton(): void {
-  d3.select('#history')
-    .append('button')
-    .attr('type', 'button')
-    .style('display', 'block')
-    .style('margin', '3px auto')
-    .style('cursor', 'pointer')
-    .text(`${curAspectRatio.inputWidth} : ${curAspectRatio.inputHeight}`)
-    .on('click', function () {
-      console.log(`text is`, d3.select(this).text());
-      const split: string[] = d3.select(this).text().split(' ');
-      changeAspect(Number(split[2]), Number(split[0]));
-    })
-    .append('span')
-    .attr('id', `${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`)
-    .style('margin-left', '20px')
-    .text(' 0%');
-
-  d3.select('#history')
-    .append('button')
-    .attr('type', 'button')
-    .attr(
-      'id',
-      `download-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
-    )
-    .attr('disabled', 'disabled')
-    .style('display', 'block')
-    .style('margin', '3px auto')
-    .style('cursor', 'pointer')
-    .text(`download`);
 }
