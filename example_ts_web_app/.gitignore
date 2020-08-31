@@ -3,6 +3,7 @@
 
 # Allow config files written in javascript files.
 !.*.js
+!jest.config.js
 !webpack.config.js
 
 # Ignore all node_modules.
@@ -11,3 +12,6 @@ node_modules
 # Ignore contents of dist folder except index.html.
 dist/*
 !dist/index.html
+
+# Ignore coverage testing folder
+coverage
