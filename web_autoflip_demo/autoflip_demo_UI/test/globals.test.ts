@@ -15,23 +15,6 @@
 
 import * as globals from '../src/globals';
 
-/*
-export let autoflipIsFree: boolean = true;
-export let audio: ArrayBuffer;
-export let countFFmpeg: number = 0;
-export let countAutoflip: number = 0;
-export let curFaceDetection: faceDetectRegion[];
-export let leftWidth: number = 0;
-export let rightWidth: number = 0;
-export let numberOfSection: number = 0;
-export let topHeight: number = 0;
-export let timeRender: number = 3000;
-export let videoBuffer: ArrayBuffer;
-export let videoInfo: VideoInfo;
-export let videoFile: File;
-export let videoResize: Resize;
-*/
-
 describe('Test all initialization and update functions for global variables', () => {
   test('correct process for autoflip free status', () => {
     expect(globals.autoflipIsFree).toBe(true);
