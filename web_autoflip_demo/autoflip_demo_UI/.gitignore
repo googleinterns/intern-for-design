@@ -1,2 +1,6 @@
-# Ignores test javascript files.
+# Ignores dist folder.
+dist
 
+# Allow ffmepg/autoflip wasm files written in javascript files.
+!src/autoflip_wasm/*
+!ffmpeg.js
