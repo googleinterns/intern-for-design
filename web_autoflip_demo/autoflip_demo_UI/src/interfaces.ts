@@ -27,6 +27,7 @@ interface CropInfo {
   videoId: number;
   user: { inputWidth: number; inputHeight: number };
   faceDetections: faceDetectRegion[][];
+  borders: BorderRegion[][];
 }
 
 /** The interface defines information for a resizing dimension. */
@@ -179,6 +180,20 @@ interface faceDetectRegion {
   score?: number;
   /**
    * Timestamp in microseconds of the detected face bounding box.
+   */
+  timestamp?: number;
+}
+
+/**
+ * Self-contained message that provides information for a border detection
+ */
+interface BorderRegion {
+  /**
+   * border bounding box for detecting top and down borders.
+   */
+  border?: Rect;
+  /**
+   * Timestamp in microseconds of the detected border bounding box.
    */
   timestamp?: number;
 }

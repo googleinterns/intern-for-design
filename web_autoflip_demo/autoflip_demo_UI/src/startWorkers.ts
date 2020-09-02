@@ -35,11 +35,10 @@ import {
   renderShots,
 } from './utilsCrop';
 
-import { handleInput } from './inputHandle';
+import { convertDoubleToString } from './inputHandle';
 
 /** Starts workers to process ffmpeg and autoflip */
 export function startWorker(): void {
-  handleInput();
   console.log(`MAIN: workers started!`);
   for (let i = 0; i < ffmpegWorkers.length; i++) {
     console.log(`MAIN: PROCESS: send the video (${i}) to worker ${i}`);
@@ -148,10 +147,10 @@ export function startWorker(): void {
         updateAutoflipIsFree(true);
       }
     } else {
+      let width = convertDoubleToString(curAspectRatio.inputWidth);
+      let height = convertDoubleToString(curAspectRatio.inputHeight);
       const downloadButton = <HTMLButtonElement>(
-        document.querySelector(
-          `#download-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
-        )
+        document.getElementById(`download-${width}-${height}`)
       );
 
       const wrapFunctionCreateDownload = createDownload.bind(

@@ -17,13 +17,17 @@ import {
   curAspectRatio,
   videoInfo,
   videoResize,
-  handlerStorage,
+  cropHandlerStorage,
+  signalHandlerStorage,
+  borderHandlerStorage,
   cropWindowStorage,
   sectionIndexStorage,
   countAutoflip,
   updateCountAutoflip,
   curFaceDetection,
   updateCurFaceDetection,
+  curBorderDetection,
+  updateCurBorderDetection,
   leftWidth,
   topHeight,
   rightWidth,
@@ -33,6 +37,8 @@ import {
   updateTopHeight,
   numberOfSection,
   updateTimeRender,
+  showSignaled,
+  showBordered,
 } from './globals';
 
 import {
@@ -49,6 +55,7 @@ import {
 } from './globals_dom';
 
 import { putMiddle } from './centerContent';
+import { convertDoubleToString } from './inputHandle';
 
 import * as d3 from 'd3';
 
@@ -57,17 +64,33 @@ export function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   const user = videoCropInfo.user;
   const cropInfo: ExternalRenderingInformation[] = videoCropInfo.cropWindows;
   const faceDetections: faceDetectRegion[][] = videoCropInfo.faceDetections;
-  if (cropInfo.length === 0 && faceDetections.length === 0) {
+  const borderDetections: BorderRegion[][] = videoCropInfo.borders;
+  if (
+    cropInfo.length === 0 &&
+    faceDetections.length === 0 &&
+    borderDetections.length === 0
+  ) {
     return;
   }
-  const wrappedFunc = timeUpdateFunction.bind(
+  const cropWrappedFunc = cropTimeUpdateFunction.bind(videoPreview, cropInfo);
+  const signalWrappedFunc = signalTimeUpdateFunction.bind(
     videoPreview,
-    cropInfo,
     faceDetections,
   );
-  handlerStorage[
+  const borderWrappedFunc = borderTimeUpdateFunction.bind(
+    videoPreview,
+    borderDetections,
+  );
+  cropHandlerStorage[
     `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
-  ].push(wrappedFunc);
+  ].push(cropWrappedFunc);
+  signalHandlerStorage[
+    `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+  ].push(signalWrappedFunc);
+  borderHandlerStorage[
+    `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+  ].push(borderWrappedFunc);
+
   if (cropInfo.length !== 0) {
     updateTimeRender(
       <number>cropInfo[cropInfo.length - 1].timestampUS / 1000000,
@@ -86,17 +109,24 @@ export function renderCroppedInfomation(videoCropInfo: CropInfo): void {
   );
   updateAutoflipBar(countAutoflip);
   console.log(`cycleWindows`, cropWindowStorage);
-  console.log(`handler`, handlerStorage);
+  console.log(`cropHandler`, cropHandlerStorage);
+  console.log(`signalHandler`, signalHandlerStorage);
+  console.log(`borderHandler`, borderHandlerStorage);
   console.log(`expected`, sectionIndexStorage);
 
   if (JSON.stringify(user) === JSON.stringify(curAspectRatio)) {
-    videoPreview.addEventListener('timeupdate', wrappedFunc);
+    videoPreview.addEventListener('timeupdate', cropWrappedFunc);
+    if (showSignaled) {
+      videoPreview.addEventListener('timeupdate', signalWrappedFunc);
+    }
+    if (showBordered) {
+      videoPreview.addEventListener('timeupdate', borderWrappedFunc);
+    }
   }
 }
 
-const timeUpdateFunction = function handleTimeUpdate(
+const cropTimeUpdateFunction = function (
   cropInfo: ExternalRenderingInformation[],
-  faceDetections: faceDetectRegion[][],
 ): void {
   for (let i = 0; i < cropInfo.length; i++) {
     if (videoPreview.currentTime > <number>cropInfo[i].timestampUS / 1000000) {
@@ -105,8 +135,14 @@ const timeUpdateFunction = function handleTimeUpdate(
       setRenderSVG(cropInfo[i]);
       putMiddle();
       renderFaceRegion(curFaceDetection, videoPreview);
+      renderBorderRegion(curBorderDetection, videoPreview);
     }
   }
+};
+
+const signalTimeUpdateFunction = function (
+  faceDetections: faceDetectRegion[][],
+): void {
   for (let i = 0; i < faceDetections.length; i++) {
     if (
       videoPreview.currentTime >
@@ -114,6 +150,20 @@ const timeUpdateFunction = function handleTimeUpdate(
     ) {
       updateCurFaceDetection(faceDetections[i]);
       renderFaceRegion(faceDetections[i], videoPreview);
+    }
+  }
+};
+
+const borderTimeUpdateFunction = function (
+  borderDetections: BorderRegion[][],
+): void {
+  for (let i = 0; i < borderDetections.length; i++) {
+    if (
+      videoPreview.currentTime >
+      <number>borderDetections[i][0].timestamp / 1000000
+    ) {
+      updateCurBorderDetection(borderDetections[i]);
+      renderBorderRegion(borderDetections[i], videoPreview);
     }
   }
 };
@@ -224,7 +274,7 @@ export function renderFaceRegion(
   faceDetections: faceDetectRegion[],
   videoPreviewEle: HTMLVideoElement,
 ): void {
-  const svg = d3.select('#detection-bounding-box');
+  const svg = d3.select('#detection-bounding-box-face');
   svg.selectAll('*').remove();
 
   if (faceDetections === undefined) {
@@ -265,6 +315,33 @@ export function renderFaceRegion(
   }
 }
 
+/** Renders the face detection bounding boxes in video. */
+export function renderBorderRegion(
+  borderDetections: BorderRegion[],
+  videoPreviewEle: HTMLVideoElement,
+): void {
+  const svg = d3.select('#detection-bounding-box-border');
+  svg.selectAll('*').remove();
+  if (borderDetections === undefined) {
+    return;
+  }
+  for (let i = 0; i < borderDetections.length; i++) {
+    const border = borderDetections[i].border as Rect;
+    if (border !== undefined) {
+      const ratio = videoPreviewEle.width / border.width;
+      svg
+        .append('rect')
+        .attr('x', `${border.x * ratio + videoPreviewEle.offsetLeft}`)
+        .attr('y', `${border.y * ratio + videoPreviewEle.offsetTop}`)
+        .attr('width', `${border.width * ratio}`)
+        .attr('height', `${border.height * ratio}`)
+        .attr('stroke', 'purple')
+        .attr('stroke-width', 2)
+        .attr('fill', 'transparent');
+    }
+  }
+}
+
 /**
  * Updates the ffmpeg progress bar according to count of decoded video sections.
  * @param n
@@ -288,10 +365,10 @@ export function updateAutoflipBar(n: number): void {
   const processText = <HTMLSpanElement>(
     document.getElementById('process-bar-text-autoflip')
   );
+  let width = convertDoubleToString(curAspectRatio.inputWidth);
+  let height = convertDoubleToString(curAspectRatio.inputHeight);
   const span = <HTMLSpanElement>(
-    document.getElementById(
-      `${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
-    )
+    document.getElementById(`span-${width}-${height}`)
   );
   const totalFrameNumber = Math.floor(videoInfo.duration * 15) + 1;
   processText.innerHTML = `${((n / totalFrameNumber) * 100).toFixed(1)}%`;

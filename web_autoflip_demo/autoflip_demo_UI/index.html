@@ -30,7 +30,7 @@ limitations under the License.
       <div
         class="card-child"
         id="card11"
-        style="width: 70%; height: 85vh; border: 0px solid red;"
+        style="width: 70%; height: 80vh; border: 0px solid red;"
       >
         <h1 style="text-align: center;">Upload a video to test!</h1>
         <div class="zone">
@@ -55,12 +55,7 @@ limitations under the License.
       <div
         class="card-child"
         id="card12"
-        style="
-          width: 30%;
-          text-align: center;
-          border: 0px solid red;
-          margin-left: 0;
-        "
+        style="width: 30%; text-align: center;"
       >
         <h3 style="margin-top: 80px;">Aspect Ratio</h3>
         <form name="aspect-ratio-from">
@@ -74,7 +69,13 @@ limitations under the License.
         <form>
           <input type="checkbox" id="text" name="gender" value="male" />
           <label for="male">Text</label><br />
-          <input type="checkbox" id="face" name="gender" value="female" />
+          <input
+            type="checkbox"
+            id="face"
+            name="gender"
+            value="female"
+            checked
+          />
           <label for="female">Human Face</label><br />
           <input type="checkbox" id="other" name="gender" value="other" />
           <label for="female">Animal</label><br />
@@ -83,31 +84,36 @@ limitations under the License.
         </form>
       </div>
     </div>
-    <div
-      class="card"
-      id="card2"
-      style="
-        position: relative;
-        height: 600px;
-        display: none;
-        overflow: hidden;
-      "
-    >
+    <div class="card" id="card2" style="display: none; overflow: hidden;">
       <div
         class="card-child"
         id="card31"
-        style="width: 70%; border: 0px solid #4285f4; height: 550px;"
+        style="width: 70%; border: 0px solid #4285f4; height: 80vh;"
       >
-        <div id="progress" style="text-align: center;">
-          <div style="display: flex; margin-left: 8rem;">
+        <div
+          id="progress"
+          style="text-align: center; width: 80%; margin-left: 10%;"
+        >
+          <div style="display: flex;">
             <h4
               class="progress-label"
               style="padding-bottom: 0.3rem; margin: 0px; margin-left: 3px;"
             >
               FFmpeg
             </h4>
-            <div id="myProgress" style="margin-left: 0.5rem;">
-              <div id="myBar-ffmpeg">
+            <div
+              id="myProgress"
+              style="
+                margin-left: 0.5rem;
+                background-color: #ddd;
+                width: 100%;
+                height: 100%;
+              "
+            >
+              <div
+                id="myBar-ffmpeg"
+                style="width: 0%; height: 20px; background-color: #4285f4;"
+              >
                 <span
                   id="process-bar-text-ffmpeg"
                   style="float: left; color: #fff;"
@@ -116,15 +122,26 @@ limitations under the License.
               </div>
             </div>
           </div>
-          <div style="display: flex; margin-left: 8rem;">
+          <div style="display: flex; margin-top: 2px;">
             <h4
               class="progress-label"
               style="padding-bottom: 0.3rem; margin: 0px;"
             >
               AutoFlip
             </h4>
-            <div id="myProgress" style="margin-left: 0.5rem;">
-              <div id="myBar-autoflip">
+            <div
+              id="myProgress"
+              style="
+                margin-left: 0.5rem;
+                background-color: #ddd;
+                width: 100%;
+                height: 100%;
+              "
+            >
+              <div
+                id="myBar-autoflip"
+                style="width: 0%; height: 20px; background-color: #4285f4;"
+              >
                 <span
                   id="process-bar-text-autoflip"
                   style="float: left; color: #fff;"
@@ -265,7 +282,18 @@ limitations under the License.
               />
             </svg>
             <svg
-              id="detection-bounding-box"
+              id="detection-bounding-box-face"
+              style="
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 500;
+                pointer-events: none;
+              "
+            ></svg>
+            <svg
+              id="detection-bounding-box-border"
               style="
                 position: absolute;
                 left: 0;
@@ -415,24 +443,38 @@ limitations under the License.
 
             <ul id="buttons" style="padding: 0px;">
               <li class="crop-button" id="mask-button" style="cursor: pointer;">
-                Mask
+                Show Mask
+              </li>
+              <li
+                class="crop-button"
+                id="signal-button"
+                style="cursor: pointer;"
+              >
+                Show Signal
+              </li>
+              <li
+                class="crop-button"
+                id="border-button"
+                style="cursor: pointer;"
+              >
+                Show Border
               </li>
               <li class="crop-button" id="shot-button" style="cursor: pointer;">
-                Shot
+                Shot+
               </li>
               <li
                 class="crop-button"
                 id="frame-button-next"
                 style="cursor: pointer;"
               >
-                Frame next
+                Frame+
               </li>
               <li
                 class="crop-button"
                 id="frame-button-previous"
                 style="cursor: pointer;"
               >
-                Frame previous
+                Frame-
               </li>
             </ul>
           </div>
@@ -446,7 +488,6 @@ limitations under the License.
           text-align: center;
           border: 0px solid #4285f4;
           margin-left: 0;
-          height: 550px;
         "
       >
         <h3 style="margin-top: 80px;">Aspect Ratio</h3>
@@ -466,10 +507,9 @@ limitations under the License.
           <input type="submit" value="Submit" style="cursor: pointer;" />
         </form>
         <h3 style="margin-top: 50px;">Crop Log</h3>
-
         <div
           id="history"
-          style="text-align: center; height: 10vh; overflow-y: scroll;"
+          style="text-align: center; height: 25vh; overflow-y: scroll;"
         ></div>
       </div>
     </div>
@@ -479,7 +519,7 @@ limitations under the License.
         <canvas id="canvas" style="background-color: blue;"></canvas>
       </div>
     </div>
-    <div class="card" id="card4" style="display: none;">
+    <div class="card" id="card4" style="display: none; text-align: center;">
       <h4>
         waiting download processing......<span id="safeTimerDisplay">0.00</span>
       </h4>

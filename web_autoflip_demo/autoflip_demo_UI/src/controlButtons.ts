@@ -13,15 +13,88 @@
  * limitations under the License.
  */
 
-import { shotStorage } from './globals';
+import {
+  shotStorage,
+  signalHandlerStorage,
+  borderHandlerStorage,
+  curAspectRatio,
+  showSignaled,
+  updateShowSignaled,
+  updateCurFaceDetection,
+  updateCurBorderDetection,
+  showBordered,
+  updateShowBordered,
+} from './globals';
 
-import { leftBox, rightBox, downBox, topBox } from './globals_dom';
+import {
+  leftBox,
+  rightBox,
+  downBox,
+  topBox,
+  videoPreview,
+} from './globals_dom';
+
+import * as d3 from 'd3';
 
 const shotButton = <HTMLLIElement>document.querySelector('#shot-button');
 shotButton.onclick = nextShot;
 
 const maskButton = <HTMLLIElement>document.querySelector('#mask-button');
 maskButton.onclick = maskVideo;
+
+const signalButton = <HTMLLIElement>document.querySelector('#signal-button');
+signalButton.onclick = showSignal;
+
+const borderButton = <HTMLLIElement>document.querySelector('#border-button');
+borderButton.onclick = showBorder;
+
+/** Shows the detection of all the signals detected by autoflip. */
+function showSignal(): void {
+  const signalHandlersCurrent =
+    signalHandlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
+  if (showSignaled) {
+    signalButton.innerHTML = 'Show Signal';
+    updateShowSignaled(false);
+    const svg = d3.select('#detection-bounding-box-face');
+    svg.selectAll('*').remove();
+    updateCurFaceDetection([]);
+    for (let i = 0; i < signalHandlersCurrent.length; i++) {
+      videoPreview.removeEventListener('timeupdate', signalHandlersCurrent[i]);
+    }
+  } else {
+    signalButton.innerHTML = 'Hidden Signal';
+    updateShowSignaled(true);
+    for (let i = 0; i < signalHandlersCurrent.length; i++) {
+      videoPreview.addEventListener('timeupdate', signalHandlersCurrent[i]);
+    }
+  }
+}
+
+/** Shows the detection of borders detecetd by autoflip. */
+function showBorder(): void {
+  const borderHandlersCurrent =
+    borderHandlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ];
+  if (showBordered) {
+    borderButton.innerHTML = 'Show Border';
+    updateShowBordered(false);
+    const svg = d3.select('#detection-bounding-box-border');
+    svg.selectAll('*').remove();
+    updateCurBorderDetection([]);
+    for (let i = 0; i < borderHandlersCurrent.length; i++) {
+      videoPreview.removeEventListener('timeupdate', borderHandlersCurrent[i]);
+    }
+  } else {
+    borderButton.innerHTML = 'Hidden Border';
+    updateShowBordered(true);
+    for (let i = 0; i < borderHandlersCurrent.length; i++) {
+      videoPreview.addEventListener('timeupdate', borderHandlersCurrent[i]);
+    }
+  }
+}
 
 /** Moves the time of the video to the next shot position. */
 function nextShot(): void {
@@ -41,7 +114,7 @@ function nextShot(): void {
 /** Masks the cropped part of the video. */
 function maskVideo(): void {
   if (leftBox.style.fill === 'white') {
-    maskButton.innerHTML = 'Mask';
+    maskButton.innerHTML = 'Show Mask';
     leftBox.style.fill = 'black';
     rightBox.style.fill = 'black';
     downBox.style.fill = 'black';
@@ -51,7 +124,7 @@ function maskVideo(): void {
     downBox.setAttribute('fill-opacity', '50%');
     topBox.setAttribute('fill-opacity', '50%');
   } else {
-    maskButton.innerHTML = 'Show Original';
+    maskButton.innerHTML = 'Hidden Mask';
     leftBox.style.fill = 'white';
     rightBox.style.fill = 'white';
     downBox.style.fill = 'white';

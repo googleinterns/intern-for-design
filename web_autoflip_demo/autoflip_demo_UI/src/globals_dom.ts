@@ -42,9 +42,6 @@ export const middleBox = <SVGRectElement>document.querySelector('#middleBox');
 export const middleBoxFrame = <SVGRectElement>(
   document.querySelector('#middleBoxFrame')
 );
-export const detectionBoundingBox = <SVGSVGElement>(
-  document.querySelector('#detection-bounding-box')
-);
 export const canvas: any = document.getElementById('canvas');
 export const timerDisplay = <HTMLSpanElement>(
   document.getElementById('safeTimerDisplay')

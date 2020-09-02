@@ -127,6 +127,15 @@ $('.custom-video-area').each(function () {
     const width = <number>$main_video_offset_bar.width() * perc;
     $main_video_offset_bar_progress.css('width', width);
     $main_video_offset.css('cx', width + leftOffset);
+    if (!video.paused) {
+      video.play();
+      $main_video_pause.css('display', 'block');
+      $main_video_play.css('display', 'none');
+    } else {
+      video.pause();
+      $main_video_pause.css('display', 'none');
+      $main_video_play.css('display', 'block');
+    }
   });
 
   /** Updates the elemnts forming the control bar of the video */

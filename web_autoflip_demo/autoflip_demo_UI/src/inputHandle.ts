@@ -17,17 +17,23 @@ import {
   curAspectRatio,
   numberOfSection,
   cropWindowStorage,
-  handlerStorage,
+  cropHandlerStorage,
+  signalHandlerStorage,
+  borderHandlerStorage,
   sectionIndexStorage,
 } from './globals';
 import { inputAspectWidth, inputAspectHeight } from './globals_dom';
 import { addHistoryButton } from './videoHandle';
 
-export function handleInput() {
+export function handleInput(): boolean {
   // Reads the user inputs for aspect ratio;
   const inputHeight = inputAspectHeight.value;
   const inputWidth = inputAspectWidth.value;
   console.log(`The user input is`, inputHeight, inputWidth);
+  if (Number(inputHeight) === 0 || Number(inputWidth) === 0) {
+    alert('Please enter positive number greater then 0');
+    return false;
+  }
   curAspectRatio.inputWidth = Number(inputWidth);
   curAspectRatio.inputHeight = Number(inputHeight);
   addHistoryButton();
@@ -38,10 +44,30 @@ export function handleInput() {
   cropWindowStorage[
     `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
   ] = [];
-  handlerStorage[
+  cropHandlerStorage[
+    `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+  ] = [];
+  signalHandlerStorage[
+    `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+  ] = [];
+  borderHandlerStorage[
     `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
   ] = [];
   sectionIndexStorage[
     `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
   ] = 0;
+  return true;
+}
+
+function isInt(n: number) {
+  return n % 1 === 0;
+}
+
+export function convertDoubleToString(n: number) {
+  if (isInt(n)) {
+    return n.toString();
+  } else {
+    const split = n.toString().split('.');
+    return `${split[0]}-${split[1]}`;
+  }
 }

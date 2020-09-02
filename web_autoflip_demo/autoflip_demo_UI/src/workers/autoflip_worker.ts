@@ -19,12 +19,13 @@ importScripts('./autoflip_wasm/autoflip_live_loader.js');
 const ctx = self as any;
 let videoWidth: number = 0;
 let videoHeight: number = 0;
-let videoAspectWidth: number = 1;
-let videoAspectHeight: number = 1;
+let videoAspectWidth: number = 0;
+let videoAspectHeight: number = 0;
 let workerWindow: number = 0;
 let resultCropInfo: ExternalRenderingInformation[] = [];
 let resultShots: number[] = [];
 let resultFaces: faceDetectRegion[][] = [];
+let resultBorders: BorderRegion[][] = [];
 let timestampHead: number = 0;
 let frameNumber: number = workerWindow * 15;
 let refeedInformation: RefeedSignals = {
@@ -39,6 +40,43 @@ declare const Module: any;
 Module.locateFile = (f: string): string => `autoflip_wasm/${f}`;
 const demo = ctx.DemoModule(Module);
 
+function startAutoflip() {
+  demo.then((module: any): void => {
+    autoflipModule = module;
+    const shotPacketListener: any = autoflipModule.PacketListener.implement(
+      shotChange,
+    );
+    const extPacketListener: any = autoflipModule.PacketListener.implement(
+      externalRendering,
+    );
+    const featurePacketListener: any = autoflipModule.PacketListener.implement(
+      featureDetect,
+    );
+    const borderPacketListener: any = autoflipModule.PacketListener.implement(
+      borderDetect,
+    );
+
+    autoflipModule.attachListener(
+      'external_rendering_per_frame',
+      extPacketListener,
+    );
+    autoflipModule.attachListener('shot_change', shotPacketListener);
+    autoflipModule.attachListener('salient_regions', featurePacketListener);
+    autoflipModule.attachListener('borders', borderPacketListener);
+
+    fetch('autoflip_wasm/autoflip_web_graph.binarypb')
+      .then(
+        (response): Promise<ArrayBuffer> => {
+          return response.arrayBuffer();
+        },
+      )
+      .then((buffer): void => {
+        autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
+        autoflipModule.changeBinaryGraph(buffer);
+      });
+  });
+}
+
 /** Analyzes the input frames and output caculated crop windows for each frame. */
 onmessage = function (e: MessageEvent): void {
   let signal: Signal = e.data;
@@ -48,14 +86,17 @@ onmessage = function (e: MessageEvent): void {
     videoAspectWidth = signal.user.inputWidth;
     videoAspectHeight = signal.user.inputHeight;
     console.log('restart autoflip');
+    if (autoflipModule === undefined) {
+      startAutoflip();
+    }
     autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
     autoflipModule.cycleGraph();
     timestampHead = Math.floor(signal.startId * (1 / 15) * 1000000);
     resultCropInfo = [];
     resultShots = [];
     resultFaces = [];
+    resultBorders = [];
   }
-
   if (
     videoAspectWidth !== 0 &&
     (signal.user.inputWidth !== videoAspectWidth ||
@@ -78,41 +119,9 @@ onmessage = function (e: MessageEvent): void {
       signal.user.inputWidth,
       signal.user.inputHeight,
     );
-
-    demo.then((module: any): void => {
-      autoflipModule = module;
-      const shotPacketListener: any = autoflipModule.PacketListener.implement(
-        shotChange,
-      );
-      const extPacketListener: any = autoflipModule.PacketListener.implement(
-        externalRendering,
-      );
-      const featurePacketListener: any = autoflipModule.PacketListener.implement(
-        featureDetect,
-      );
-      const borderPacketListener: any = autoflipModule.PacketListener.implement(
-        borderDetect,
-      );
-
-      autoflipModule.attachListener(
-        'external_rendering_per_frame',
-        extPacketListener,
-      );
-      autoflipModule.attachListener('shot_change', shotPacketListener);
-      autoflipModule.attachListener('salient_regions', featurePacketListener);
-      autoflipModule.attachListener('borders', borderPacketListener);
-
-      fetch('autoflip_wasm/autoflip_web_graph.binarypb')
-        .then(
-          (response): Promise<ArrayBuffer> => {
-            return response.arrayBuffer();
-          },
-        )
-        .then((buffer): void => {
-          autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
-          autoflipModule.changeBinaryGraph(buffer);
-        });
-    });
+    if (autoflipModule === undefined) {
+      startAutoflip();
+    }
   }
 
   if (signal.type === 'changeAspectRatio') {
@@ -132,11 +141,13 @@ onmessage = function (e: MessageEvent): void {
       videoId: signal.videoId,
       shots: resultShots,
       faceDetections: resultFaces,
+      borders: resultBorders,
       user: signal.user,
     });
     resultCropInfo = [];
     resultShots = [];
     resultFaces = [];
+    resultBorders = [];
   } else {
     // Gets frameData from indexDB and process with Autoflip.
     readFramesFromIndexedDB(signal.videoId, signal.startId, frameNumber).then(
@@ -154,6 +165,7 @@ onmessage = function (e: MessageEvent): void {
             videoId: signal.videoId,
             shots: resultShots,
             faceDetections: resultFaces,
+            borders: resultBorders,
             user: signal.user,
           });
 
@@ -169,12 +181,14 @@ onmessage = function (e: MessageEvent): void {
             videoId: signal.videoId,
             shots: resultShots,
             faceDetections: resultFaces,
+            borders: resultBorders,
             user: signal.user,
           });
         }
         resultCropInfo = [];
         resultShots = [];
         resultFaces = [];
+        resultBorders = [];
       },
     );
   }
@@ -221,6 +235,11 @@ let featureDetect = {
 };
 let borderDetect = {
   onBorder: (stream: string, proto: string, timestamp: number) => {
+    let borderInfo: BorderRegion[] = convertSeralizedBorderInfoToObj(
+      proto,
+      timestamp,
+    );
+    resultBorders.push(borderInfo);
     console.log(`detect border!`, proto, timestamp);
     if (!hasSignals) {
       refeedInformation.borders.push({
@@ -292,7 +311,6 @@ function convertSeralizedFaceDetectionInfoToObj(
   protoString: string,
   timestamp: number,
 ): faceDetectRegion[] {
-  console.log('proto', protoString);
   const protoArray: any[] = JSON.parse(protoString);
   let faceDetectionsInfo: faceDetectRegion[] = [];
 
@@ -302,7 +320,6 @@ function convertSeralizedFaceDetectionInfoToObj(
     faceDetectionsInfo.push(faceDetect);
   }
   if (protoArray[1] ?? false) {
-    console.log('the second half of the array', protoArray[1]);
     for (let i = 0; i < protoArray[1].length; i++) {
       const faceDetect: faceDetectRegion = {};
       if (protoArray[1][i][1] ?? false) {
@@ -324,6 +341,30 @@ function convertSeralizedFaceDetectionInfoToObj(
   return faceDetectionsInfo;
 }
 
+/** Transfers the border information from stream. */
+function convertSeralizedBorderInfoToObj(
+  protoString: string,
+  timestamp: number,
+): BorderRegion[] {
+  const protoArray: any[] = JSON.parse(protoString);
+  let borderInfo: BorderRegion[] = [];
+  if (protoArray[0] === null) {
+    const borderDetect: BorderRegion = {};
+    borderDetect.timestamp = timestamp + timestampHead;
+    borderInfo.push(borderDetect);
+    return borderInfo;
+  }
+  for (let i = 0; i < protoArray[0].length; i++) {
+    const borderDetect: BorderRegion = {};
+    borderDetect.border = convertSeralizedRectToObj(
+      protoArray[0][i][0],
+    ) as Rect;
+    borderDetect.timestamp = timestamp + timestampHead;
+    borderInfo.push(borderDetect);
+  }
+  return borderInfo;
+}
+
 /** Processes input frames with autoflip wasm. */
 async function refeedSignals(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -337,8 +378,6 @@ async function refeedSignals(): Promise<string> {
       const curTimestamp = refeedInformation.borders[i].timestamp;
       autoflipModule.processSize(info.width, info.height);
       autoflipModule.processBorders(refeedInformation.borders[i].border);
-      //autoflipModule.processSalientRegions('[]');
-      //autoflipModule.processShots(true);
       if (
         featureIndex < refeedInformation.detections.length &&
         curTimestamp === refeedInformation.detections[featureIndex].timestamp

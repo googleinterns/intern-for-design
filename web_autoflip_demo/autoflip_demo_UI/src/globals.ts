@@ -22,6 +22,7 @@ export let audio: ArrayBuffer;
 export let countFFmpeg: number = 0;
 export let countAutoflip: number = 0;
 export let curFaceDetection: faceDetectRegion[];
+export let curBorderDetection: BorderRegion[];
 export let leftWidth: number = 0;
 export let rightWidth: number = 0;
 export let numberOfSection: number = 0;
@@ -31,10 +32,14 @@ export let videoBuffer: ArrayBuffer;
 export let videoInfo: VideoInfo;
 export let videoFile: File;
 export let videoResize: Resize;
+export let showSignaled: boolean;
+export let showBordered: boolean;
 
 export let shotStorage: number[] = [];
 export let cropWindowStorage: any = {};
-export let handlerStorage: any = {};
+export let cropHandlerStorage: any = {};
+export let signalHandlerStorage: any = {};
+export let borderHandlerStorage: any = {};
 export let sectionIndexStorage: any = {};
 export let outputStorage: any = {};
 export let finished: boolean[] = [];
@@ -73,6 +78,9 @@ export function updateCountFFmpeg(update: number): void {
 export function updateCurFaceDetection(update: faceDetectRegion[]): void {
   curFaceDetection = update;
 }
+export function updateCurBorderDetection(update: BorderRegion[]): void {
+  curBorderDetection = update;
+}
 export function updateLeftWidth(update: number): void {
   leftWidth = update;
 }
@@ -84,4 +92,10 @@ export function updateTopHeight(update: number): void {
 }
 export function updateTimeRender(update: number): void {
   timeRender = update;
+}
+export function updateShowSignaled(update: boolean): void {
+  showSignaled = update;
+}
+export function updateShowBordered(update: boolean): void {
+  showBordered = update;
 }

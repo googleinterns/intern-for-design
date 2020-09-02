@@ -26,10 +26,14 @@ import {
 
 /** Centers video section indludes video and SVG masking elements. */
 export function putMiddle(): void {
-  let left = (card31.offsetWidth - middleBox.clientWidth) / 2 - leftWidth;
+  let left =
+    (card31.offsetWidth - middleBox.getBoundingClientRect().width) / 2 -
+    leftWidth;
   let top =
-    (videoControlSection.offsetTop - middleBox.clientHeight) / 2 - topHeight;
-  if (topBox.clientWidth === 0) {
+    (videoControlSection.offsetTop - middleBox.getBoundingClientRect().height) /
+      2 -
+    topHeight;
+  if (topBox.getBoundingClientRect().width === 0) {
     left = (card31.offsetWidth - videoPreview.offsetWidth) / 2;
     videoSection.style.width = `100%`;
     top = (videoControlSection.offsetTop - videoPreview.height) / 2;

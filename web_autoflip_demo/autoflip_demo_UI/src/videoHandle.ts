@@ -31,10 +31,12 @@ import {
   curAspectRatio,
 } from './globals';
 
+import { convertDoubleToString } from './inputHandle';
 import { videoPreview, videoRecord, card1, card2 } from './globals_dom';
 import { ffmpegWorkers } from './globals_worker';
 import * as d3 from 'd3';
 import { changeAspect } from './changeAspectRatio';
+import { handleInput } from './inputHandle';
 
 // Adds event to html element.
 const inputVideo = <HTMLInputElement>document.querySelector('#video-upload');
@@ -45,6 +47,9 @@ putMiddle();
 
 /** Handles onChange event of input video element. */
 export function handleOnChange(event: Event): void {
+  if (!handleInput()) {
+    return;
+  }
   let promise = new Promise(function (resolve: any): void {
     if (videoFile === undefined) {
       let input = <HTMLInputElement>event.target;
@@ -106,17 +111,24 @@ export function handleOnChange(event: Event): void {
     startWorker();
   });
 }
+
 /** Adds crop history button in crop log section */
 export function addHistoryButton(): void {
+  let width = convertDoubleToString(curAspectRatio.inputWidth);
+  let height = convertDoubleToString(curAspectRatio.inputHeight);
+
   d3.select('#history')
+    .append('div')
+    .style('display', 'flex')
+    .style('width', 'fit-content')
+    .style('margin', 'auto')
+    .attr('id', `wrap-${width}-${height}`)
     .append('button')
-    .attr(
-      'id',
-      `history-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
-    )
+    .attr('id', `history-${width}-${height}`)
     .attr('type', 'button')
     .style('display', 'block')
-    .style('margin', '3px auto')
+    .style('margin', '3px 0px')
+    .style('margin-right', '10px')
     .style('cursor', 'pointer')
     .text(`${curAspectRatio.inputWidth} : ${curAspectRatio.inputHeight}`)
     .on('click', function () {
@@ -125,20 +137,18 @@ export function addHistoryButton(): void {
       changeAspect(Number(split[2]), Number(split[0]));
     })
     .append('span')
-    .attr('id', `${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`)
+    .attr('id', `span-${width}-${height}`)
     .style('margin-left', '20px')
     .text(' 0%');
 
-  d3.select('#history')
+  d3.select(`#wrap-${width}-${height}`)
     .append('button')
     .attr('type', 'button')
-    .attr(
-      'id',
-      `download-${curAspectRatio.inputWidth}-${curAspectRatio.inputHeight}`,
-    )
+    .attr('id', `download-${width}-${height}`)
     .attr('disabled', 'disabled')
     .style('display', 'block')
-    .style('margin', '3px auto')
+    .style('margin', '3px 0px')
+    .style('margin-left', '10px')
     .style('cursor', 'pointer')
     .text(`download`);
 }

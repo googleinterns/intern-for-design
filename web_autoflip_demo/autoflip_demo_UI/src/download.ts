@@ -31,7 +31,8 @@ import {
 } from './globals_dom';
 
 import { ffmpegWorkerCombine, ffmpegWorkerAudio } from './globals_worker';
-
+import { convertDoubleToString } from './inputHandle';
+import { putMiddle } from './centerContent';
 const canvas2D = canvas.getContext('2d') as CanvasRenderingContext2D;
 
 let videoCropX = 0;
@@ -62,7 +63,7 @@ export function createDownload(inputWidth: number, inputHeight: number): void {
   canvas.height = renderDimension.height;
 
   // Pauses the main preview video player to ensure recording quality
-  videoPreview.pause();
+  setTimeout(() => videoPreview.pause(), 100);
   videoPreview.currentTime = 0;
   videoRecord.play();
   startRecording();
@@ -110,6 +111,7 @@ function startRecording(): void {
   const options = { mimeType: 'video/webm;codecs=h264' };
   recordedBlobs = [];
   mediaRecorder = new MediaRecorder(stream, options);
+  mediaRecorder.onstop = handleStop;
   mediaRecorder.ondataavailable = handleDataAvailable;
   mediaRecorder.start();
   card2.style.display = 'none';
@@ -117,11 +119,16 @@ function startRecording(): void {
   timer();
 }
 
+function handleStop(event: Event): void {
+  console.log('Recorder stopped: ', event);
+  const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
+  generateVideo(superBuffer);
+}
+
 /** Stops mediaRecorder recording and then process the video output. */
 function stopRecording(): void {
   mediaRecorder.stop();
-  const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
-  generateVideo(superBuffer);
+  console.log('Recorded Blobs: ', recordedBlobs);
 }
 
 /** Creates the downloable file and download. */
@@ -163,11 +170,14 @@ function generateVideo(blob: Blob): void {
     output = e.data.data.buffers[0].data;
     console.log('MAIN: Combine: Main thread receive combined video', output);
     card2.style.display = 'flex';
+    putMiddle();
     card4.style.display = 'none';
     outputStorage[`${aspectWidth}&${aspectHeight}`] = output;
     download(aspectWidth, aspectHeight);
+    let width = convertDoubleToString(aspectWidth);
+    let height = convertDoubleToString(aspectHeight);
     const downloadButton = <HTMLButtonElement>(
-      document.querySelector(`#download-${aspectWidth}-${aspectHeight}`)
+      document.querySelector(`#download-${width}-${height}`)
     );
     downloadButton.onclick = null;
     const wrapFunctionDownload = download.bind(e, aspectWidth, aspectHeight);

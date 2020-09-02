@@ -14,7 +14,9 @@
  */
 
 import {
-  handlerStorage,
+  cropHandlerStorage,
+  signalHandlerStorage,
+  borderHandlerStorage,
   curAspectRatio,
   sectionIndexStorage,
   cropWindowStorage,
@@ -23,6 +25,8 @@ import {
   videoInfo,
   countAutoflip,
   updateCountAutoflip,
+  showSignaled,
+  showBordered,
 } from './globals';
 
 import { videoPreview } from './globals_dom';
@@ -47,6 +51,10 @@ function handleChangeAspect(e: Event): void {
   e.preventDefault();
   const changeInputHeight = changeAspectHeight.value;
   const changeInputWidth = changeAspectWidth.value;
+  if (Number(changeInputHeight) === 0 || Number(changeInputWidth) === 0) {
+    alert('Please enter positive number greater then 0');
+    return;
+  }
   changeAspect(Number(changeInputHeight), Number(changeInputWidth));
 }
 
@@ -54,17 +62,35 @@ export function changeAspect(
   changeInputHeight: number,
   changeInputWidth: number,
 ) {
-  const preHandlers =
-    handlerStorage[
+  const preCropHandlers =
+    cropHandlerStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
     ];
+  for (let i = 0; i < preCropHandlers.length; i++) {
+    videoPreview.removeEventListener('timeupdate', preCropHandlers[i]);
+  }
+  if (showSignaled) {
+    const preSignalHandlers =
+      signalHandlerStorage[
+        `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+      ];
+    for (let i = 0; i < preSignalHandlers.length; i++) {
+      videoPreview.removeEventListener('timeupdate', preSignalHandlers[i]);
+    }
+  }
+  if (showBordered) {
+    const preBorderHandlers =
+      borderHandlerStorage[
+        `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+      ];
+    for (let i = 0; i < preBorderHandlers.length; i++) {
+      videoPreview.removeEventListener('timeupdate', preBorderHandlers[i]);
+    }
+  }
   console.log(`The user input is`, changeInputHeight, changeInputWidth);
 
   curAspectRatio.inputWidth = changeInputWidth;
   curAspectRatio.inputHeight = changeInputHeight;
-  for (let i = 0; i < preHandlers.length; i++) {
-    videoPreview.removeEventListener('timeupdate', preHandlers[i]);
-  }
 
   console.log(`check if exist!`);
   if (
@@ -77,7 +103,13 @@ export function changeAspect(
     cropWindowStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
     ] = [];
-    handlerStorage[
+    cropHandlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = [];
+    signalHandlerStorage[
+      `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+    ] = [];
+    borderHandlerStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
     ] = [];
     sectionIndexStorage[
@@ -96,12 +128,30 @@ export function changeAspect(
   updateCountAutoflip(windows.length);
   updateAutoflipBar(countAutoflip);
 
-  const handlersCurrent =
-    handlerStorage[
+  const cropHandlersCurrent =
+    cropHandlerStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
     ];
-  for (let i = 0; i < handlersCurrent.length; i++) {
-    videoPreview.addEventListener('timeupdate', handlersCurrent[i]);
+  for (let i = 0; i < cropHandlersCurrent.length; i++) {
+    videoPreview.addEventListener('timeupdate', cropHandlersCurrent[i]);
+  }
+  if (showSignaled) {
+    const signalHandlersCurrent =
+      signalHandlerStorage[
+        `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+      ];
+    for (let i = 0; i < signalHandlersCurrent.length; i++) {
+      videoPreview.addEventListener('timeupdate', signalHandlersCurrent[i]);
+    }
+  }
+  if (showBordered) {
+    const borderHandlersCurrent =
+      borderHandlerStorage[
+        `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
+      ];
+    for (let i = 0; i < borderHandlersCurrent.length; i++) {
+      videoPreview.addEventListener('timeupdate', borderHandlersCurrent[i]);
+    }
   }
   if (numberOfSection === Math.ceil(windows.length / 30)) {
   } else {

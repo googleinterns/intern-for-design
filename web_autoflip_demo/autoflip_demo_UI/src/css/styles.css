@@ -18,6 +18,14 @@ body {
   font-family: sans-serif;
 }
 
+.card {
+  /* Add shadows to create the "card" effect */
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  transition: 0.3s;
+  padding: 20px 0px;
+  margin: 20px 50px;
+}
+
 .card-child {
   /* Add shadows to create the "card" effect */
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
@@ -76,28 +84,9 @@ body {
 .custom-video-area {
   margin-top: 50px;
 }
-
-#myProgress {
-  width: 70%;
-  background-color: #ddd;
-  margin: auto;
-}
-
-#myBar-ffmpeg {
-  width: 0%;
-  height: 20px;
-  background-color: #4285f4;
-}
-
-#myBar-autoflip {
-  width: 0%;
-  height: 20px;
-  background-color: #4285f4;
-}
-
 #start-demo,
 .crop-button {
-  padding: 10px 32px;
+  padding: 6px 20px;
   text-align: center;
   display: inline-block;
   font-size: 16px;
