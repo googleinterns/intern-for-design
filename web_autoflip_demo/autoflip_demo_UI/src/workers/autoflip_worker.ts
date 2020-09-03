@@ -40,6 +40,7 @@ declare const Module: any;
 Module.locateFile = (f: string): string => `autoflip_wasm/${f}`;
 const demo = ctx.DemoModule(Module);
 
+/** Starts a autoflip module to do cropping. */
 function startAutoflip() {
   demo.then((module: any): void => {
     autoflipModule = module;
@@ -110,11 +111,6 @@ onmessage = function (e: MessageEvent): void {
     videoAspectHeight =
       signal.user.inputHeight === 0 ? 1 : signal.user.inputHeight;
     frameNumber = workerWindow * 15;
-    console.log(
-      `user input Autoflip`,
-      signal.user.inputWidth,
-      signal.user.inputHeight,
-    );
     if (autoflipModule === undefined) {
       startAutoflip();
     }
@@ -148,7 +144,6 @@ onmessage = function (e: MessageEvent): void {
     // Gets frameData from indexDB and process with Autoflip.
     readFramesFromIndexedDB(signal.videoId, signal.startId, frameNumber).then(
       (value: Frame[]): void => {
-        console.log(`PROMISE: promise ${signal.videoId} returned`);
         let frameData: Frame[] = value;
         handleFrames(frameData, signal);
         if (signal.end === true) {
@@ -165,7 +160,6 @@ onmessage = function (e: MessageEvent): void {
             user: signal.user,
           });
 
-          console.log('refeed', refeedInformation);
           hasSignals = true;
         } else {
           autoflipModule.runTillIdle();
@@ -192,12 +186,10 @@ onmessage = function (e: MessageEvent): void {
 
 // These are the listeners that will recieve the changes from autoflip.
 // They are called whenever there is a change.
-
 let shotChange = {
   onShot: (stream: string, change: boolean, timestampMs: number) => {
     const timestampForVideo = timestampMs + timestampHead;
     resultShots.push(timestampForVideo);
-    console.log(`detect shot!`, timestampForVideo, timestampMs, timestampHead);
     if (!hasSignals) {
       refeedInformation.shots.push({
         shot: change,
@@ -210,7 +202,6 @@ let externalRendering = {
   onExternalRendering: (stream: string, proto: string) => {
     let cropInfo = convertSeralizedExternalRenderingInfoToObj(proto);
     resultCropInfo.push(cropInfo);
-    console.log(`detect crop window!`, cropInfo);
   },
 };
 let featureDetect = {
@@ -220,7 +211,6 @@ let featureDetect = {
       timestamp,
     );
     resultFaces.push(faceInfo);
-    console.log(`detect feature window!`, faceInfo, timestamp);
     if (!hasSignals) {
       refeedInformation.detections.push({
         detection: proto,
@@ -236,7 +226,6 @@ let borderDetect = {
       timestamp,
     );
     resultBorders.push(borderInfo);
-    console.log(`detect border!`, proto, timestamp);
     if (!hasSignals) {
       refeedInformation.borders.push({
         border: proto,
@@ -330,7 +319,6 @@ function convertSeralizedFaceDetectionInfoToObj(
         );
       }
       faceDetect.timestamp = timestamp + timestampHead;
-      console.log('face', faceDetect);
       faceDetectionsInfo.push(faceDetect);
     }
   }
@@ -364,13 +352,14 @@ function convertSeralizedBorderInfoToObj(
 /** Processes input frames with autoflip wasm. */
 async function refeedSignals(): Promise<string> {
   return new Promise((resolve, reject) => {
-    console.log('AUTOFLIP: start refeeding');
+    console.log(
+      'AUTOFLIP: start refeeding pre-catched information to Autoflip.',
+    );
     const info = { width: videoWidth, height: videoHeight };
     let featureIndex = 0;
     let shotIndex = 0;
-    console.log('size', refeedInformation.borders.length);
+
     for (let i = 0; i < refeedInformation.borders.length; i++) {
-      console.log(`feed ${i}`);
       const curTimestamp = refeedInformation.borders[i].timestamp;
       autoflipModule.processSize(info.width, info.height);
       autoflipModule.processBorders(refeedInformation.borders[i].border);
@@ -387,7 +376,6 @@ async function refeedSignals(): Promise<string> {
         shotIndex < refeedInformation.shots.length &&
         curTimestamp === refeedInformation.shots[shotIndex].timestamp
       ) {
-        console.log('match the timestamp for shot');
         autoflipModule.processShots(refeedInformation.shots[shotIndex].shot);
         shotIndex++;
       }
@@ -441,10 +429,8 @@ async function readFramesFromIndexedDB(
   startId: number,
   frameNumber: number,
 ): Promise<Frame[]> {
-  console.log(`startid`, startId);
   const key = startId;
-  console.log(`frameNumber last`, frameNumber);
-  console.log(`key, read from database`, key, frameNumber);
+
   // Gets the indexDB database to fetch the decoded frame data
   return new Promise((resolve, reject) => {
     getIndexDBToRead().then((db: IDBDatabase) => {
@@ -455,7 +441,7 @@ async function readFramesFromIndexedDB(
       let frameData: Frame[] = [];
       transaction.oncomplete = function (): void {
         console.log(
-          `AUTOFLIP: IndexDB: Transaction get is complete for section ${videoId}`,
+          `AUTOFLIP: IndexDB transaction get is complete for section ${videoId}`,
         );
         resolve(frameData);
       };
@@ -466,7 +452,7 @@ async function readFramesFromIndexedDB(
         let request = objectStore.get(key + i);
         request.onerror = function (event) {
           console.log(
-            'AUTOFLIP: IndexDB: Unable to retrieve data from database!',
+            'AUTOFLIP: IndexDB is unable to retrieve data from database!',
           );
         };
         request.onsuccess = function (event: Event): void {
@@ -475,7 +461,7 @@ async function readFramesFromIndexedDB(
             frameData.push(request.result);
           } else {
             console.log(
-              `IndexDB:frame(${key + i}) couldn't be found in your database!`,
+              `IndexDB: frame(${key + i}) couldn't be found in your database!`,
             );
           }
         };
@@ -490,7 +476,7 @@ async function getIndexDBToRead(): Promise<IDBDatabase> {
     let db: IDBDatabase;
     const request = indexedDB.open('auto-flip', 1);
     request.onerror = (event: Event) => {
-      console.error('FFMPEG: Failed to load indexeddb');
+      console.error('AUTOFLIP: Failed to load indexeddb.');
       throw new Error(String(event));
     };
     request.onsuccess = (event) => {

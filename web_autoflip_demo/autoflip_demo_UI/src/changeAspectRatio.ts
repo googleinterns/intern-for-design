@@ -48,6 +48,7 @@ const changeAspectHeight = <HTMLInputElement>(
 
 changeAspectForm.onsubmit = handleChangeAspect;
 
+/** handle function when submitting a new aspect ratio */
 function handleChangeAspect(e: Event): void {
   e.preventDefault();
   const changeInputHeight = changeAspectHeight.value;
@@ -92,18 +93,15 @@ export function changeAspect(
       videoPreview.removeEventListener('timeupdate', preBorderHandlers[i]);
     }
   }
-  console.log(`The user input is`, changeInputHeight, changeInputWidth);
 
   curAspectRatio.inputWidth = changeInputWidth;
   curAspectRatio.inputHeight = changeInputHeight;
 
-  console.log(`check if exist!`);
   if (
     sectionIndexStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
     ] === undefined
   ) {
-    console.log(`notexsit!`);
     addHistoryButton();
     cropWindowStorage[
       `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
@@ -160,11 +158,6 @@ export function changeAspect(
   }
   if (numberOfSection === Math.ceil(windows.length / 30)) {
   } else {
-    console.log(
-      `post startID`,
-      windows.length,
-      Math.floor(windows.length / 30),
-    );
     autoflipWorker.postMessage({
       type: 'changeAspectRatio',
       videoId: Math.floor(windows.length / 30),

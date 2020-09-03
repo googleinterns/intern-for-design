@@ -36,12 +36,14 @@ let videoMuted: any;
 
 /** Sends output data back to main script. */
 onmessage = function (e: MessageEvent): void {
-  console.log(e.data);
   videoMuted = e.data.mutedVideo;
   videoAudio = e.data.audioVideo;
-  console.log(`AUDIO: recieved the video Info`, videoMuted, videoAudio);
+  console.log(
+    `FFMPEG COMBINE: recieved the video Info to combine.`,
+    videoMuted,
+    videoAudio,
+  );
   const ctx = self as any;
-  console.log(`AUDIO: going to process video array to extract audio`, e.data);
   const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
   let args = parseArgumentsCombine(
     `-i input.webm -i audio.aac -c:v copy output.mp4`,
@@ -70,7 +72,7 @@ onmessage = function (e: MessageEvent): void {
     })
     .then(function (result: FFmpegResult): void {
       const ctx = self as any;
-      console.log(`Combine: get combine from video`, result);
+      console.log(`FFMEPG COMBINE: get combine from video`, result);
       ctx.postMessage({
         type: 'combine',
         data: result,

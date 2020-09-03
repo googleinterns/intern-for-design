@@ -57,7 +57,6 @@ export function startWorker(): void {
       updateFFmpegBar(countFFmpeg);
 
       if (JSON.stringify(e.data.user) === JSON.stringify(curAspectRatio)) {
-        console.log(`the video(${e.data.videoId}) is continue!`);
         if (e.data.videoId === 0) {
           autoflipWorker.postMessage({
             type: 'firstCrop',
@@ -118,19 +117,14 @@ export function startWorker(): void {
     }
     console.log(`MAIN: analysis received from autoflip`, e.data);
     // Applys the cropInfo to current display video.
-    console.log(`MAIN: render the recevied video crop windows`);
     renderCroppedInfomation(e.data);
-    console.log(`MAIN: render the recevied shots`);
     renderShots(e.data);
 
     if (e.data.type !== 'finishedAnalysis') {
-      console.log(`request next`);
       const expect =
         sectionIndexStorage[
           `${curAspectRatio.inputHeight}&${curAspectRatio.inputWidth}`
         ];
-
-      console.log(`finished`, finished);
       if (finished[expect] === true) {
         autoflipWorker.postMessage({
           type: 'nextCropFind',

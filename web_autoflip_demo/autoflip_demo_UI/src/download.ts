@@ -114,13 +114,14 @@ function startRecording(): void {
   mediaRecorder.onstop = handleStop;
   mediaRecorder.ondataavailable = handleDataAvailable;
   mediaRecorder.start();
+  console.log('DOWNLOAD: Recorder started.');
   card2.style.display = 'none';
   card4.style.display = 'block';
   timer();
 }
 
 function handleStop(event: Event): void {
-  console.log('Recorder stopped: ', event);
+  console.log('DOWNLOAD: Recorder stopped.');
   const superBuffer = new Blob(recordedBlobs, { type: 'video/webm' });
   generateVideo(superBuffer);
 }
@@ -128,7 +129,6 @@ function handleStop(event: Event): void {
 /** Stops mediaRecorder recording and then process the video output. */
 function stopRecording(): void {
   mediaRecorder.stop();
-  console.log('Recorded Blobs: ', recordedBlobs);
 }
 
 /** Creates the downloable file and download. */
@@ -168,7 +168,7 @@ function generateVideo(blob: Blob): void {
 
   ffmpegWorkerCombine.onmessage = function (e: MessageEvent): void {
     output = e.data.data.buffers[0].data;
-    console.log('MAIN: Combine: Main thread receive combined video', output);
+    console.log('MAIN: Main thread receive combined video', output);
     card2.style.display = 'flex';
     putMiddle();
     card4.style.display = 'none';
@@ -224,13 +224,12 @@ function timer(): void {
 
 /** Extract the audio from the input video */
 export function getAudioOfVideo(): void {
-  console.log('AUDIO: Main thread post video to extrat audio');
   ffmpegWorkerAudio.postMessage({
     type: 'videoData',
     video: videoBuffer,
   });
   ffmpegWorkerAudio.onmessage = function (e: MessageEvent): void {
-    console.log('AUDIO: Main thread receive audio', e.data);
+    console.log('MAIN: Main thread receive audio', e.data);
     if (e.data.data.buffers.length !== 0) {
       updateAudio(e.data.data.buffers[0].data);
     }

@@ -107,11 +107,6 @@ export function renderCroppedInfomation(videoCropInfo: CropInfo): void {
     ].length,
   );
   updateAutoflipBar(countAutoflip);
-  console.log(`cycleWindows`, cropWindowStorage);
-  console.log(`cropHandler`, cropHandlerStorage);
-  console.log(`signalHandler`, signalHandlerStorage);
-  console.log(`borderHandler`, borderHandlerStorage);
-  console.log(`expected`, sectionIndexStorage);
 
   if (JSON.stringify(user) === JSON.stringify(curAspectRatio)) {
     videoPreview.addEventListener('timeupdate', cropWrappedFunc);
@@ -178,7 +173,6 @@ function setRenderSVG(videoCropInfoSingle: ExternalRenderingInformation): void {
   middleBox.style.width = `${renderInfo.width * ratio}`;
   middleBox.style.height = `${renderInfo.height * ratio}`;
   const color = videoCropInfoSingle.padding_color as Color;
-  //middleBox.style.fill = `black`;
   middleBox.style.fill = `rgb(${color.r}, ${color.g}, ${color.b})`;
 
   middleBoxFrame.style.display = 'block';
@@ -341,10 +335,7 @@ export function renderBorderRegion(
   }
 }
 
-/**
- * Updates the ffmpeg progress bar according to count of decoded video sections.
- * @param n
- */
+/** Updates the ffmpeg progress bar according to count of decoded video sections. */
 export function updateFFmpegBar(n: number): void {
   const progressBar = <HTMLDivElement>document.getElementById('myBar-ffmpeg');
   const processText = <HTMLSpanElement>(
@@ -354,12 +345,8 @@ export function updateFFmpegBar(n: number): void {
   progressBar.style.width = `${(n / numberOfSection) * 100}%`;
 }
 
-/**
- * Updates the Autoflip progress bar according to count of finished video sections.
- * @param n
- */
+/** Updates the Autoflip progress bar according to count of finished video sections. */
 export function updateAutoflipBar(n: number): void {
-  console.log(`current count a = ${n}`);
   const progressBar = <HTMLDivElement>document.getElementById('myBar-autoflip');
   const processText = <HTMLSpanElement>(
     document.getElementById('process-bar-text-autoflip')

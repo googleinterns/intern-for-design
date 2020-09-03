@@ -25,11 +25,11 @@ import {
 import { inputAspectWidth, inputAspectHeight } from './globals_dom';
 import { addHistoryButton } from './videoHandle';
 
+/** Handles inputs to create history button and initialize all storage arrays. */
 export function handleInput(): boolean {
   // Reads the user inputs for aspect ratio;
   const inputHeight = inputAspectHeight.value;
   const inputWidth = inputAspectWidth.value;
-  console.log(`The user input is`, inputHeight, inputWidth);
   if (Number(inputHeight) === 0 || Number(inputWidth) === 0) {
     alert('Please enter positive number greater then 0');
     return false;

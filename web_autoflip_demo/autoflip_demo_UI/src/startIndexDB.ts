@@ -22,17 +22,15 @@ request.onerror = (event: Event): void => {
 };
 request.onsuccess = (event: Event): void => {
   db = (event.target as IDBOpenDBRequest).result;
-  console.log(`MAIN: success`);
   const transaction = db.transaction(['decodedFrames'], 'readwrite');
   const objectStore = transaction.objectStore('decodedFrames');
   objectStore.clear();
-  console.log(`MAIN: database clear!`);
+  console.log(`MAIN: indexeddb database clear!`);
 };
 request.onupgradeneeded = function (event: Event): void {
   const db = (event.target as IDBOpenDBRequest).result;
-  console.log(`MAIN: upgrade`);
   if (!db.objectStoreNames.contains('decodedFrames')) {
-    console.log(`MAIN: database created!`);
+    console.log(`MAIN: indexeddb database created!`);
     db.createObjectStore('decodedFrames', { keyPath: 'frameId' });
   }
 };

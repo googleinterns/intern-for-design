@@ -40,17 +40,13 @@ onmessage = function (e: MessageEvent): void {
   if (e.data.type === 'videoData') {
     videoBufferReceived = e.data.video;
     console.log(
-      `ffmpeg ${e.data.workerId} recieved the video Info`,
+      `FFMPEG: ffmpeg ${e.data.workerId} recieved the video Info`,
       videoBufferReceived,
     );
   } else {
     const ctx = self as any;
     console.log(
       `FFMPEG: ffmpeg Worker ${e.data.workerId}: video array received from main`,
-    );
-    console.log(
-      `FFMPEG: going to process video array(${e.data.videoId})`,
-      e.data,
     );
     const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
     const args = parseArguments(
@@ -129,7 +125,10 @@ function addSectionFramestoIndexDB(
       let request: IDBRequest<IDBValidKey> = decodedFrames.add(framesData[i]);
       request.onsuccess = function (): void {};
       request.onerror = function (): void {
-        console.log(`Error frame ${framesData[i].frameId}`, request.error);
+        console.log(
+          `IndexDB: Error frame ${framesData[i].frameId}`,
+          request.error,
+        );
       };
     }
   });

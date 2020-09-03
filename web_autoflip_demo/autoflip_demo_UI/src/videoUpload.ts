@@ -50,10 +50,7 @@ function startDemo(): void {
   });
 }
 
-/**
- * The drop event handler for the file drag and drop section.
- * @param ev
- */
+/** The drop event handler for the file drag and drop section. */
 function dropHandler(ev: DragEvent): void {
   dropArea.style.background = 'transparent';
   // Prevent default behavior (Prevent file from being opened)
@@ -64,21 +61,13 @@ function dropHandler(ev: DragEvent): void {
     handleOnChange(ev);
   }
 }
-/**
- * The dropover event handler for the file drag and drop section.
- * @param ev
- */
+/** The dropover event handler for the file drag and drop section. */
 function dragOverHandler(ev: Event): void {
-  // Prevent default behavior (Prevent file from being opened)
   ev.preventDefault();
   dropArea.style.background = '#4285F4';
 }
-/**
- * The dropleave event handler for the file drag and drop section.
- * @param ev
- */
+/** The dropleave event handler for the file drag and drop section. */
 function dragLeaveHandler(ev: Event): void {
-  // Prevent default behavior (Prevent file from being opened)
   ev.preventDefault();
   dropArea.style.background = 'transparent';
 }

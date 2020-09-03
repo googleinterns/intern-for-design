@@ -15,8 +15,8 @@
 
 import { timeRender } from './globals';
 import { videoPreview } from './globals_dom';
-// Limites the video playing part to the section finished.
 
+/** Limites the video playing part to the sections completed by autoflip  */
 videoPreview.addEventListener('timeupdate', function (): void {
   if (videoPreview.currentTime > timeRender) {
     videoPreview.currentTime = 0;

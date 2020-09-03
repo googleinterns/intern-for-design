@@ -57,7 +57,6 @@ export function handleOnChange(event: Event): void {
       updateVideoFile(input.files[0]);
     }
     console.log(`MAIN: video file has been chosen`, videoFile);
-
     const videoURL = URL.createObjectURL(videoFile);
     videoPreview.src = videoURL;
     videoRecord.src = videoURL;
@@ -116,7 +115,6 @@ export function handleOnChange(event: Event): void {
 export function addHistoryButton(): void {
   let width = convertDoubleToString(curAspectRatio.inputWidth);
   let height = convertDoubleToString(curAspectRatio.inputHeight);
-
   d3.select('#history')
     .append('div')
     .style('display', 'flex')

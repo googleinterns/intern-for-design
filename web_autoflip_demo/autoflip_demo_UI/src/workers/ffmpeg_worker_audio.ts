@@ -35,12 +35,17 @@ let videoBufferReceivedAudio: ArrayBuffer;
 
 /** Sends output data back to main script. */
 onmessage = function (e: MessageEvent): void {
-  console.log(e.data);
   if (e.data.type === 'videoData') {
     videoBufferReceivedAudio = e.data.video;
-    console.log(`AUDIO: recieved the video Info`, videoBufferReceivedAudio);
+    console.log(
+      `FFMEPG AUDIO: recieved the video Info`,
+      videoBufferReceivedAudio,
+    );
     const ctx = self as any;
-    console.log(`AUDIO: going to process video array to extract audio`, e.data);
+    console.log(
+      `FFMEPG AUDIO: going to process video array to extract audio`,
+      e.data,
+    );
     const ffmpegWasmWorker = new ctx.Module.ffmpegWasmClass();
     const args = parseArgumentsAudio(
       `-i input.webm -vn -acodec copy output.aac`,
@@ -60,7 +65,7 @@ onmessage = function (e: MessageEvent): void {
       })
       .then(function (result: FFmpegResult): void {
         const ctx = self as any;
-        console.log(`AUDIO: get audio from video`, result);
+        console.log(`FFMEPG AUDIO: get audio from video`, result);
         ctx.postMessage({
           type: 'audio',
           data: result,
