@@ -2,6 +2,7 @@
 # on CPU.
 
 input_stream: "VIDEO:input_video"
+input_stream: "SHOT_BOUNDARIES:shot_change"
 output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
 output_stream: "DETECTIONS:face_detections"
 output_stream: "IS_SPEAKER_CHANGE:speaker_change"
@@ -41,13 +42,13 @@ node {
   input_stream: "VIDEO:input_video"
   input_stream: "LANDMARKS:multi_face_landmarks"
   input_stream: "DETECTIONS:face_detections"
+  input_stream: "SHOT_BOUNDARIES:shot_change"
   output_stream: "DETECTIONS_SPEAKERS:active_speakers_detections"
   output_stream: "IS_SPEAKER_CHANGE:speaker_change"
   output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
   options: {
     [mediapipe.autoflip.LipTrackCalculatorOptions.ext]: {
       output_shot_boundary: true
-      min_speaker_span: 2000000
     }
   }
 }
