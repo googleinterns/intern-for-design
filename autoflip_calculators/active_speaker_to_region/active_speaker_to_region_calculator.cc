@@ -142,7 +142,7 @@ ActiveSpeakerToRegionCalculator::ActiveSpeakerToRegionCalculator() {}
       region->mutable_location_normalized()->set_y(y);
       region->mutable_location_normalized()->set_width(width);
       region->mutable_location_normalized()->set_height(height);
-      region->mutable_signal_type()->set_standard(SignalType::FACE_FULL);
+      region->mutable_signal_type()->set_standard(SignalType::SPEAKER);
 
       // Score the scores based on image cues.
       float visual_score = 1.0f;
