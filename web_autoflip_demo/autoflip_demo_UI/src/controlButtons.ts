@@ -98,17 +98,14 @@ function showBorder(): void {
 
 /** Moves the time of the video to the next shot position. */
 function nextShot(): void {
-  const videoPerview = <HTMLVideoElement>(
-    document.querySelector('#video-display')
-  );
-  const time: number = videoPerview.currentTime;
+  const time: number = videoPreview.currentTime;
   for (let i = 0; i < shotStorage.length; i++) {
     if (shotStorage[i] / 1000000 > time) {
-      videoPerview.currentTime = shotStorage[i] / 1000000;
+      videoPreview.currentTime = shotStorage[i] / 1000000;
       return;
     }
   }
-  videoPerview.currentTime = shotStorage[0];
+  videoPreview.currentTime = shotStorage[0];
 }
 
 /** Masks the cropped part of the video. */
