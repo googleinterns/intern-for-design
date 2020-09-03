@@ -2,12 +2,11 @@
 *.js
 
 # Allow config files written in javascript files.
-!.*.js
+!*.*.js
 
 # Allow ffmepg/autoflip wasm files written in javascript files.
-!ffmpeg.js
-!*_api*.js
-!autoflip_demo_UI/autoflip_wasm/*
+# !*_api*.js
+
 
 # Ingore all node_modules
 node_modules

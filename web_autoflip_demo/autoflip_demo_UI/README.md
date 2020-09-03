@@ -18,10 +18,25 @@ cd  web_autoflip_demo/autoflip_demo_UI
 
 ```
 npm i
-```
 
 ```
-tsc
+
+To build the code
+
+```
+npm run build
+```
+
+To run a local web server
+
+```
+npm run serve
+```
+
+To run all the tests on test folder
+
+```
+npm run test
 ```
 
 ## Usage
