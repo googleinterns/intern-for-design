@@ -31,7 +31,7 @@ import {
   curAspectRatio,
 } from './globals';
 
-import { convertDoubleToString } from './inputHandle';
+import { convertDoubleToString } from './utilsCrop';
 import { videoPreview, videoRecord, card1, card2 } from './globals_dom';
 import { ffmpegWorkers } from './globals_worker';
 import * as d3 from 'd3';

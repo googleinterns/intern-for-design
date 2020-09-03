@@ -85,10 +85,6 @@ onmessage = function (e: MessageEvent): void {
   if (signal.type === 'changeAspectRatio') {
     videoAspectWidth = signal.user.inputWidth;
     videoAspectHeight = signal.user.inputHeight;
-    console.log('restart autoflip');
-    if (autoflipModule === undefined) {
-      startAutoflip();
-    }
     autoflipModule.setAspectRatio(videoAspectWidth, videoAspectHeight);
     autoflipModule.cycleGraph();
     timestampHead = Math.floor(signal.startId * (1 / 15) * 1000000);

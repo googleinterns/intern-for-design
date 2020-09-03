@@ -31,7 +31,7 @@ import {
 } from './globals_dom';
 
 import { ffmpegWorkerCombine, ffmpegWorkerAudio } from './globals_worker';
-import { convertDoubleToString } from './inputHandle';
+import { convertDoubleToString } from './utilsCrop';
 import { putMiddle } from './centerContent';
 const canvas2D = canvas.getContext('2d') as CanvasRenderingContext2D;
 

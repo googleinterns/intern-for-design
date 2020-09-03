@@ -27,6 +27,7 @@ import {
   updateCountAutoflip,
   showSignaled,
   showBordered,
+  finished,
 } from './globals';
 
 import { videoPreview } from './globals_dom';
@@ -53,6 +54,10 @@ function handleChangeAspect(e: Event): void {
   const changeInputWidth = changeAspectWidth.value;
   if (Number(changeInputHeight) === 0 || Number(changeInputWidth) === 0) {
     alert('Please enter positive number greater then 0');
+    return;
+  }
+  if (!finished[0]) {
+    alert('Wait a moment to change aspect ratio!');
     return;
   }
   changeAspect(Number(changeInputHeight), Number(changeInputWidth));

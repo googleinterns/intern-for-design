@@ -19,11 +19,13 @@ import { renderFaceRegion } from '../src/utilsCrop';
 
 describe('Test util function for cropping', () => {
   document.body.innerHTML = `
-  <svg id="detection-bounding-box" style="left:0;top:0;width:500;height:500;"></svg>
+  <svg id="detection-bounding-box-face" style="left:0;top:0;width:500;height:500;"></svg>
   <video id="video-preview" width="300px" height="300px"></video>
   `;
   test('Check add face dection box with right number before function', () => {
-    const boundingBoxArea = document.getElementById('detection-bounding-box');
+    const boundingBoxArea = document.getElementById(
+      'detection-bounding-box-face',
+    );
     expect(boundingBoxArea?.childElementCount).toBe(0);
   });
 
@@ -37,7 +39,9 @@ describe('Test util function for cropping', () => {
       { faceRegion: { x: 0, y: 0, width: 100, height: 100 }, signalType: 3 },
     ];
     renderFaceRegion(faceDetections, videoPreview);
-    const boundingBoxArea = document.getElementById('detection-bounding-box');
+    const boundingBoxArea = document.getElementById(
+      'detection-bounding-box-face',
+    );
     expect(boundingBoxArea?.childElementCount).toBe(3);
   });
 });

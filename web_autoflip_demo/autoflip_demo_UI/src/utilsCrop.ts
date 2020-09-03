@@ -55,7 +55,6 @@ import {
 } from './globals_dom';
 
 import { putMiddle } from './centerContent';
-import { convertDoubleToString } from './inputHandle';
 
 import * as d3 from 'd3';
 
@@ -374,4 +373,17 @@ export function updateAutoflipBar(n: number): void {
   processText.innerHTML = `${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   span.innerHTML = ` ${((n / totalFrameNumber) * 100).toFixed(1)}%`;
   progressBar.style.width = `${(n / totalFrameNumber) * 100}%`;
+}
+
+function isInt(n: number) {
+  return n % 1 === 0;
+}
+
+export function convertDoubleToString(n: number) {
+  if (isInt(n)) {
+    return n.toString();
+  } else {
+    const split = n.toString().split('.');
+    return `${split[0]}-${split[1]}`;
+  }
 }

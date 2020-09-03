@@ -58,16 +58,3 @@ export function handleInput(): boolean {
   ] = 0;
   return true;
 }
-
-function isInt(n: number) {
-  return n % 1 === 0;
-}
-
-export function convertDoubleToString(n: number) {
-  if (isInt(n)) {
-    return n.toString();
-  } else {
-    const split = n.toString().split('.');
-    return `${split[0]}-${split[1]}`;
-  }
-}

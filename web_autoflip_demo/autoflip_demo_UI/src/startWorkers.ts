@@ -35,7 +35,7 @@ import {
   renderShots,
 } from './utilsCrop';
 
-import { convertDoubleToString } from './inputHandle';
+import { convertDoubleToString } from './utilsCrop';
 
 /** Starts workers to process ffmpeg and autoflip */
 export function startWorker(): void {
