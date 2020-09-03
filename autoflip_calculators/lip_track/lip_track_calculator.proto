@@ -50,7 +50,7 @@ message LipTrackCalculatorOptions {
   // Only send shot boundary results if the speaker changes
   optional bool output_shot_boundary_only_on_change = 13 [default = true];
   // Minimum number of shot duration (in seconds).
-  optional double min_shot_span = 14 [default = 2.5];
+  optional double min_shot_span = 14 [default = 1];
 
   // Minimum number of speaker duration (in microseconds).
   optional double min_speaker_span = 15 [default = 2500000];

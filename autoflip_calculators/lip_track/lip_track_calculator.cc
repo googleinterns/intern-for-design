@@ -296,7 +296,8 @@ LipTrackCalculator::LipTrackCalculator() {}
     const auto& input_landmark_lists = signal.landmark_lists;
     const auto& input_detections = signal.detections;
 
-    if (input_landmark_lists.empty() || input_detections.empty())
+    if (input_landmark_lists.empty() || input_detections.empty()
+      || input_detections.size() != input_landmark_lists.size()) 
       continue;
   
     std::map<int32, std::deque<float>> cur_face_statistics_inner;
@@ -543,9 +544,10 @@ LipTrackCalculator::LipTrackCalculator() {}
 } 
 
 float LipTrackCalculator::GetDistance(const NormalizedLandmark& mark_1,
-                                      const NormalizedLandmark& mark_2) {                              
+                                      const NormalizedLandmark& mark_2) {                            
   return std::sqrt(std::pow((mark_1.x()-mark_2.x())*frame_width_, 2) 
-  + std::pow((mark_1.y()-mark_2.y())*frame_height_, 2));
+  + std::pow((mark_1.y()-mark_2.y())*frame_height_, 2)
+  + std::pow(mark_1.z()-mark_2.z(), 2));
 }
 
 ::mediapipe::Status LipTrackCalculator::GetStatistics(const std::vector<NormalizedLandmarkList>& landmark_lists, 
