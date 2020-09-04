@@ -17,18 +17,18 @@ cd mediapipe
 Download active_speaker_development.pbtxt, shot_boundary_development.pbtxt, autoflip_graph.pbtxt, autoflip_graph_development.pbtxt, autoflip_messages.proto, BUILD. Replace the original files in /mediapipe/examples/desktop/autoflip.
 
 # Calculators
-Copy all the .cc and .proto files in calculators folder, and paste them into /mediapipe/examples/desktop/autoflip/calculators. Copy the content of the BULID in calculators and add them into /mediapipe/examples/desktop/autoflip/calculators/BUILD.
+Copy all the .cc and .proto files in calculators folder, and paste them into /mediapipe/examples/desktop/autoflip/calculators folder. Copy the content of the BULID in calculators and add them at the end of file /mediapipe/examples/desktop/autoflip/calculators/BUILD.
 
 # Subgraphs
-Copy all the .pbtxt files in subgraph folder, and paste them into /mediapipe/examples/desktop/autoflip/subgraph. Copy the content of the BULID in subgraph and add them into /mediapipe/examples/desktop/autoflip/subgraph/BUILD.
+Copy all the .pbtxt files in subgraph folder, and paste them into /mediapipe/examples/desktop/autoflip/subgraph folder. Copy the content of the BULID in subgraph and add them at the end of file /mediapipe/examples/desktop/autoflip/subgraph/BUILD.
 
 # Models
-Save the files in models folder to /mediapipe/models.
+Save the files in models folder to /mediapipe/models. NOTE: change the saved_model_path in autoflip_shot_boundary_detection_subgraph.pbtxt to the path that you save the shot_boundary_detection_saved_model. Change the model_path in autoflip_graph.pbtxt and autoflip_graph_development.pbtxt to the path that you save the frozen_east_text_detection.pb.
 
 # Opencv
-This is only required by text detection. If you do not need text detection. Comment out the text detecton node in graphs and skip this part. Otherwise, install opencv dnn module (require opencv 3.x or higher) first since default mediapipe does not require it. 
+This is only required by text detection. If you do not need text detection. Comment out the text detecton node in graphs (.pbtxt) and skip this part. Otherwise, install opencv dnn module (require opencv 3.x or higher) first since default mediapipe does not require it. 
 
-Copy opencv_dnn_inc.h in framework_port folder, and paste it into /framework/port. Copy the content of the BULID in framework_port and add them into /framework/port/BUILD.
+Copy opencv_dnn_inc.h in framework_port folder, and paste it into /framework/port folder. Copy the content of the BULID in framework_port and add them into file /framework/port/BUILD.
 
 Add libopencv_dnn at the end of srcs of “opencv” in /third_party/opencv_yourOS.BUILD. NOTE: the dnn module name may change. For example, if you use linux, add "lib/libopencv_dnn.so" in /third_party/opencv_linux.BUILD. If you use macOS, add "local/opt/opencv@3/lib/libopencv_dnn.dylib" in /third_party/opencv_macos.BUILD.
 
@@ -39,6 +39,13 @@ bazel build -c opt --define MEDIAPIPE_DISABLE_GPU=1   mediapipe/examples/desktop
 
 ```
 GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/autoflip/run_autoflip \  --calculator_graph_config_file=mediapipe/examples/desktop/autoflip/autoflip_graph.pbtxt \--input_side_packets=input_video_path=/absolute/path/to/the/local/video/file,output_video_path=/absolute/path/to/save/the/output/video/file,aspect_ratio=width:height
+```
+
+# Crop signal visualization (Optional)
+If you want to output the crop signals, run
+
+```
+GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/autoflip/run_autoflip \  --calculator_graph_config_file=mediapipe/examples/desktop/autoflip/autoflip_graph_development.pbtxt \--input_side_packets=input_video_path=/absolute/path/to/the/local/video/file,output_video_path=/absolute/path/to/save/the/output/video/file,key_frame_crop_viz_frames_path=/absolute/path/to/save/the/key/frame/video/file,salient_point_viz_frames_path=/absolute/path/to/save/the/salient/point/video/file,aspect_ratio=width:height
 ```
 
 # Speaker signal visualization (Optional)
