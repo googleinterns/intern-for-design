@@ -14,7 +14,7 @@ git clone https://github.com/google/mediapipe.git
 cd mediapipe
 ```
 # Config
-Download active_speaker_development.pbtxt, autoflip_graph.pbtxt, autoflip_graph_development.pbtxt, autoflip_messages.proto, BUILD. Replace the original files in /mediapipe/examples/desktop/autoflip.
+Download active_speaker_development.pbtxt, shot_boundary_development.pbtxt, autoflip_graph.pbtxt, autoflip_graph_development.pbtxt, autoflip_messages.proto, BUILD. Replace the original files in /mediapipe/examples/desktop/autoflip.
 
 # Calculators
 Copy all the .cc and .proto files in calculators folder, and paste them into /mediapipe/examples/desktop/autoflip/calculators. Copy the content of the BULID in calculators and add them into /mediapipe/examples/desktop/autoflip/calculators/BUILD.
@@ -41,12 +41,20 @@ bazel build -c opt --define MEDIAPIPE_DISABLE_GPU=1   mediapipe/examples/desktop
 GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/autoflip/run_autoflip \  --calculator_graph_config_file=mediapipe/examples/desktop/autoflip/autoflip_graph.pbtxt \--input_side_packets=input_video_path=/absolute/path/to/the/local/video/file,output_video_path=/absolute/path/to/save/the/output/video/file,aspect_ratio=width:height
 ```
 
-# Speaker signal (Optional)
+# Speaker signal visualization (Optional)
 If you want to output the active speaker contour signal, run
 
 ```
 GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/autoflip/run_autoflip \  --calculator_graph_config_file=mediapipe/examples/desktop/autoflip/active_speaker_development.pbtxt \--input_side_packets=input_video_path=/absolute/path/to/the/local/video/file,contour_information_frames_path=/absolute/path/to/save/the/output/video/file
 ```
+
+# Shot boundary detection visualization (Optional)
+If you want to visualize the shot boundary detection, run
+
+```
+GLOG_logtostderr=1 bazel-bin/mediapipe/examples/desktop/autoflip/run_autoflip \  --calculator_graph_config_file=mediapipe/examples/desktop/autoflip/shot_boundary_development.pbtxt \--input_side_packets=input_video_path=/absolute/path/to/the/local/video/file,boundary_information_frames_path=/absolute/path/to/save/the/output/video/file
+```
+
 
 ## Reference
 1. Text detection model is EAST: https://arxiv.org/abs/1704.03155v2.
