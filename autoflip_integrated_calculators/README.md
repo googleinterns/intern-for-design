@@ -26,7 +26,10 @@ Copy all the .pbtxt files in subgraph folder, and paste them into /mediapipe/exa
 Save the files in models folder to /mediapipe/models. NOTE: change the saved_model_path in autoflip_shot_boundary_detection_subgraph.pbtxt to the path that you save the shot_boundary_detection_saved_model. Change the model_path in autoflip_graph.pbtxt and autoflip_graph_development.pbtxt to the path that you save the frozen_east_text_detection.pb.
 
 # Opencv
-This is only required by text detection. If you do not need text detection. Comment out the text detecton node in graphs (.pbtxt) and skip this part. Otherwise, install opencv dnn module (require opencv 3.x or higher) first since default mediapipe does not require it. 
+This is only required by text detection. If you do not need text detection. Comment out the text detecton node in graphs (.pbtxt) and skip this part. Otherwise, install opencv dnn module (require opencv 3.x or higher) first since default mediapipe does not require it. In setup_opencv.sh, remove "-DBUILD_opencv_dnn=OFF".
+```
+sh setup_opencv.sh
+```
 
 Copy opencv_dnn_inc.h in framework_port folder, and paste it into /framework/port folder. Copy the content of the BULID in framework_port and add them into file /framework/port/BUILD.
 

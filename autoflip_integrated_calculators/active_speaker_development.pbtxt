@@ -26,18 +26,25 @@ node {
   }
 }
 
+node {
+  calculator: "AutoFlipShotBoundaryDetectionSubgraph"
+  input_stream: "VIDEO:video_raw"
+  output_stream: "IS_SHOT_CHANGE:shot_change"
+}
+
 # DETECTION: find active speaker on the down sampled stream
 node {
   calculator: "AutoFlipActiveSpeakerDetectionSubgraph"
   input_stream: "VIDEO:video_frames_scaled"
+  input_stream: "SHOT_BOUNDARIES:shot_change"
   output_stream: "DETECTIONS_SPEAKERS:active_speaker_detections"
   output_stream: "DETECTIONS:face_detections"
   output_stream: "IS_SPEAKER_CHANGE:speaker_change"
   output_stream: "CONTOUR_INFORMATION_FRAME:contour_information_frames"
 }
 
-# ENCODING(optional): encode the video stream for the salient_point_viz_frames
-# output. Draws the focus points and the scene crop window (red).
+# ENCODING: encode the video stream for the contour_information_frames
+# output..
 node {
   calculator: "VideoPreStreamCalculator"
   # Fetch frame format and dimension from input frames.
