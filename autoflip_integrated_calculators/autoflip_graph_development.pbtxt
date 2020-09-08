@@ -60,7 +60,7 @@ node {
   output_stream: "REGIONS:text_regions"
   options {
     [mediapipe.autoflip.TextDetectionCalculatorOptions.ext] {
-      model_path: "/mediapipe/models/frozen_east_text_detection.pb"
+      model_path: "mediapipe/models/frozen_east_text_detection.pb"
       east_width: 160
       east_height: 160
     }

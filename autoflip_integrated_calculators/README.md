@@ -23,7 +23,7 @@ Copy all the .cc and .proto files in calculators folder, and paste them into /me
 Copy all the .pbtxt files in subgraph folder, and paste them into /mediapipe/examples/desktop/autoflip/subgraph folder. Copy the content of the BULID in subgraph and add them at the end of file /mediapipe/examples/desktop/autoflip/subgraph/BUILD.
 
 # Models
-Save the files in models folder to /mediapipe/models. NOTE: change the saved_model_path in autoflip_shot_boundary_detection_subgraph.pbtxt to the path that you save the shot_boundary_detection_saved_model. Change the model_path in autoflip_graph.pbtxt and autoflip_graph_development.pbtxt to the path that you save the frozen_east_text_detection.pb.
+Save the files in models folder to /mediapipe/models.
 
 # Opencv
 This is only required by text detection. If you do not need text detection. Comment out the text detecton node in graphs (.pbtxt) and skip this part. Otherwise, install opencv dnn module (require opencv 3.x or higher) first since default mediapipe does not require it. In setup_opencv.sh, remove "-DBUILD_opencv_dnn=OFF".
