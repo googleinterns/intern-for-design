@@ -1,0 +1,49 @@
+# Autoflip graph that only renders the shot boundary. For use by developers 
+# who may be adding signals and adjusting weights.
+max_queue_size: -1
+
+# VIDEO_PREP: Decodes an input video file into images and a video header.
+node {
+  calculator: "OpenCvVideoDecoderCalculator"
+  input_side_packet: "INPUT_FILE_PATH:input_video_path"
+  output_stream: "VIDEO:video_raw"
+  output_stream: "VIDEO_PRESTREAM:video_header"
+}
+
+node {
+  calculator: "AutoFlipShotBoundaryDetectionSubgraph"
+  input_stream: "VIDEO:video_raw"
+  output_stream: "IS_SHOT_CHANGE:shot_change"
+}
+
+
+node {
+  calculator: "ShotBoundaryVisualizationCalculator"
+  input_stream: "VIDEO:video_raw"
+  input_stream: "IS_SHOT_CHANGE:shot_change"
+  output_stream: "BOUNDARY_INFORMATION_FRAME:boundary_information_frames"
+}
+
+# ENCODING: encode the video stream for the boundary_information_frames
+# output.
+node {
+  calculator: "VideoPreStreamCalculator"
+  # Fetch frame format and dimension from input frames.
+  input_stream: "FRAME:boundary_information_frames"
+  # Copying frame rate and duration from original video.
+  input_stream: "VIDEO_PRESTREAM:video_header"
+  output_stream: "boundary_information_frames_header"
+}
+
+node {
+  calculator: "OpenCvVideoEncoderCalculator"
+  input_stream: "VIDEO:boundary_information_frames"
+  input_stream: "VIDEO_PRESTREAM:boundary_information_frames_header"
+  input_side_packet: "OUTPUT_FILE_PATH:boundary_information_frames_path"
+  options: {
+    [mediapipe.OpenCvVideoEncoderCalculatorOptions.ext]: {
+      codec: "avc1"
+      video_format: "mp4"
+    }
+  }
+}
